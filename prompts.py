@@ -1,3 +1,5 @@
+from state import RawRecord
+
 def get_rules_prompt(player_num: int):
     return f"""你正在参与“谁是卧底”游戏，游戏规则如下：
 
@@ -31,14 +33,15 @@ def get_rules_prompt(player_num: int):
 4. 若发现自己可能和其他玩家的词语都不一样，自己有可能是卧底，那么要将自己伪装成和其他玩家是一样的词语，让他们误投，来争取自己最后的胜利；"""
 
 
-def get_statement_prompt(player_id: int, your_word: str, history: list[str]):
+def get_statement_prompt(player_id: int, your_word: str, history: list[RawRecord]):
+    records = [record.content for record in history if (not record.is_private) or (record.is_private and record.read_only_by == player_id)]
     return f"""你是玩家 {player_id}，你的词语是“{your_word}”。
 
 ---
 
 以下是游戏中各玩家的发言和投票记录（若记录中还没有玩家发言，表明你是第一个）：
 
-{"\n".join(history)}
+{"\n".join(records)}
 
 ---
 
@@ -68,14 +71,15 @@ def get_statement_prompt(player_id: int, your_word: str, history: list[str]):
 """
 
 
-def get_voting_prompt(player_id: int, your_word: str, history: list[str]):
+def get_voting_prompt(player_id: int, your_word: str, history: list[RawRecord]):
+    records = [record.content for record in history if (not record.is_private) or (record.is_private and record.read_only_by == player_id)]
     return f"""你是玩家 {player_id}，你的词语是“{your_word}”。
 
 ---
 
 以下是游戏中各玩家的发言和投票记录：
 
-{"\n".join(history)}
+{"\n".join(records)}
 
 ---
 

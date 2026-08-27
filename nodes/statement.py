@@ -1,7 +1,7 @@
 from langchain.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage, ToolCall, ToolCallChunk
 from langgraph.types import Command, Send
 
-from state import State, GameStage, StateRecord, VoteRecord, PlayerIdentity
+from state import State, GameStage, StateRecord, VoteRecord, PlayerIdentity, RawRecord
 from prompts import get_rules_prompt, get_statement_prompt, get_voting_prompt
 from llm import llm
 
@@ -12,7 +12,7 @@ def statement_node(state: State):
     # 若为新一轮开始
     if state["active_player_ptr"] == 0:
         print(f"> 第 {state['game_round']} 轮发言开始...")
-        history.append(f"------ 第 {state['game_round']} 轮发言阶段：------")
+        history.append(RawRecord(content=f"------ 第 {state['game_round']} 轮发言阶段：------"))
 
     present_players = state["present_players"]
     active_player_ptr = state["active_player_ptr"]
@@ -32,7 +32,8 @@ def statement_node(state: State):
     print(f"> 玩家 {current_player} 发言思考：{thinking}")
     print(f"> 玩家 {current_player} 发言内容：{statement}")
 
-    history.append(f"玩家 {current_player} 发言：{statement}")
+    history.append(RawRecord(is_private=True, read_only_by=current_player, content=f"玩家 {current_player} 内心独白：{thinking}"))
+    history.append(RawRecord(content=f"玩家 {current_player} 发言：{statement}"))
 
     if active_player_ptr >= len(present_players) - 1:
         # 本轮所有玩家发言结束，进入投票阶段

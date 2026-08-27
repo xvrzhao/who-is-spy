@@ -2,7 +2,7 @@ from langchain.messages import HumanMessage, SystemMessage, AIMessage, ToolMessa
 from langgraph.types import Command, Send
 from langgraph.graph import StateGraph, START, END
 
-from state import State, GameStage, StateRecord, VoteRecord, PlayerIdentity, VotingState
+from state import State, GameStage, StateRecord, VoteRecord, PlayerIdentity, VotingState, RawRecord
 from prompts import get_rules_prompt, get_statement_prompt, get_voting_prompt
 from llm import llm
 
@@ -10,7 +10,7 @@ from llm import llm
 def voting_start_node(state: State):
     print(f"> 第 {state['game_round']} 轮投票开始...")
     return Command(update={
-        "history": [f"------ 第 {state['game_round']} 轮投票阶段：------"]
+        "history": [RawRecord(content=f"------ 第 {state['game_round']} 轮投票阶段：------")],
     }, goto=[
         Send("voting_player_node", {
             "game_round": state["game_round"],
@@ -24,8 +24,6 @@ def voting_start_node(state: State):
 
 def voting_player_node(state: VotingState):
     player = state["player"]
-    word = state["word"]
-    history = state['history']
 
     print(f"> 玩家 {player} 开始投票...")
 
@@ -41,7 +39,10 @@ def voting_player_node(state: VotingState):
     print(f"> 玩家 {player} 投票结果：玩家 {decision}")
 
     return Command(update={
-        "history": [f"玩家 {player} 投给：玩家 {decision}"],
+        "history": [
+            RawRecord(is_private=True, read_only_by=player, content=f"玩家 {player} 内心独白：{reason}"),
+            RawRecord(content=f"玩家 {player} 投给：玩家 {decision}"),
+        ],
         "vote_history": [VoteRecord(
             game_round=state["game_round"], 
             voter_id=player, 
@@ -70,7 +71,7 @@ def voting_end_node(state: State):
     if len(eliminated_players) > 1:
         print(f"> 第 {round} 轮投票结果：平票，无人淘汰！游戏进入下一轮...")
         return Command(update={
-            "history": [f"第 {round} 轮投票结果：平票，无人淘汰！游戏进入下一轮..."],
+            "history": [RawRecord(content=f"第 {round} 轮投票结果：平票，无人淘汰！游戏进入下一轮...")],
             "game_round": round + 1,
             "stage": GameStage.STATEMENT,
         }, goto="statement_node")
@@ -82,7 +83,7 @@ def voting_end_node(state: State):
     if eliminated_player == state['spy_id']:
         print(f"> 第 {round} 轮投票结果：玩家 {eliminated_player}（卧底）被淘汰，平民胜利！")
         return Command(update={
-            "history": [f"第 {round} 轮投票结果：玩家 {eliminated_player} （卧底）被淘汰，平民胜利！"],
+            "history": [RawRecord(content=f"第 {round} 轮投票结果：玩家 {eliminated_player} （卧底）被淘汰，平民胜利！")],
             "present_players": present_players,
             "winner": PlayerIdentity.CIVILIAN,
         }, goto=END)
@@ -91,7 +92,7 @@ def voting_end_node(state: State):
         # 剩余两人，卧底胜利
         print(f"> 第 {round} 轮投票结果：玩家 {eliminated_player}（平民）被淘汰，剩余两人，卧底（玩家 {state['spy_id']}）胜利！")
         return Command(update={
-            "history": [f"第 {round} 轮投票结果：玩家 {eliminated_player} （平民）被淘汰，剩余两人，卧底（玩家 {state['spy_id']}）胜利！"],
+            "history": [RawRecord(content=f"第 {round} 轮投票结果：玩家 {eliminated_player} （平民）被淘汰，剩余两人，卧底（玩家 {state['spy_id']}）胜利！")],
             "present_players": present_players,
             "winner": PlayerIdentity.SPY,
         }, goto=END)
@@ -99,7 +100,7 @@ def voting_end_node(state: State):
         # 游戏继续，进入下一轮
         print(f"> 第 {round} 轮投票结果：玩家 {eliminated_player}（平民）被淘汰！游戏进入下一轮...")
         return Command(update={
-            "history": [f"第 {round} 轮投票结果：玩家 {eliminated_player} （平民）被淘汰！游戏进入下一轮..."],
+            "history": [RawRecord(content=f"第 {round} 轮投票结果：玩家 {eliminated_player} （平民）被淘汰！游戏进入下一轮...")],
             "present_players": present_players,
             "game_round": round + 1,
             "stage": GameStage.STATEMENT,

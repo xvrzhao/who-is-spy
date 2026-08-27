@@ -1,26 +1,37 @@
 from enum import Enum
 from typing import TypedDict, Annotated
 from operator import add
+from dataclasses import dataclass, field, asdict
 
 class GameStage(str, Enum):
+    """游戏阶段"""
     STATEMENT = "statement"
     VOTING = "voting"
 
 class PlayerIdentity(str, Enum):
+    """玩家身份"""
     CIVILIAN = "civilian"
     SPY = "spy"
 
 class StateRecord(TypedDict):
+    """发言记录"""
     game_round: int
     player_id: int
     content: str
     thinking: str
 
 class VoteRecord(TypedDict):
+    """投票记录"""
     game_round: int
     voter_id: int
     decision: int # 投给谁
     reason: str
+    
+@dataclass
+class RawRecord:
+    content: str
+    is_private: bool = False
+    read_only_by: int | None = None
 
 class State(TypedDict):
     player_total: int     # 玩家数量
@@ -35,7 +46,7 @@ class State(TypedDict):
 
     state_history: Annotated[list[StateRecord], add] # 发言历史记录
     vote_history: Annotated[list[VoteRecord], add] # 投票历史记录
-    history: Annotated[list[str], add] # 发言投票文本记录，用于 llm 决策
+    history: Annotated[list[RawRecord], add] # 游戏过程文本记录，用于给 llm 决策
 
     winner: PlayerIdentity | None
 
@@ -44,4 +55,4 @@ class VotingState(TypedDict):
     player_total: int
     player: int
     word: str
-    history: Annotated[list[str], add]
+    history: Annotated[list[RawRecord], add]
