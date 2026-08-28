@@ -1,5 +1,14 @@
 from state import RawRecord
 
+def get_words_prompt():
+    return """在“谁是卧底”游戏中，平民和卧底各自会拿到一个意思相近但又有细微差别的词语，请给出这样的词语，有如下要求：
+
+1. 可以是物品、形容词、动词等等；
+2. 两个词语的字数要相同；
+3. 可以是成语；
+
+你的回答中只包含这一对词语，两个词语间用一个空格隔开。"""
+
 def get_rules_prompt(player_num: int):
     return f"""你正在参与“谁是卧底”游戏，游戏规则如下：
 

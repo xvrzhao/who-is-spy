@@ -1,6 +1,12 @@
+from os import getenv
+
 from langchain_deepseek import ChatDeepSeek
+from dotenv import load_dotenv
+
+load_dotenv()
 
 llm = ChatDeepSeek(
     model="deepseek-v4-flash",
-    api_key="sk-7766a3fd56b14474a507c660db31803d",
+    api_key=getenv("LLM_API_KEY"),
+    extra_body={"thinking": {"type": "disabled"}},
 )
