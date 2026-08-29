@@ -1,10 +1,19 @@
 from langchain.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage, ToolCall, ToolCallChunk
 from langgraph.types import Command, Send
 from langgraph.graph import StateGraph, START, END
+from pydantic import BaseModel, Field
 
 from state import State, GameStage, StateRecord, VoteRecord, PlayerIdentity, VotingState, RawRecord
 from prompts import get_rules_prompt, get_statement_prompt, get_voting_prompt
 from llm import llm
+
+class Vote(BaseModel):
+    """玩家投票，包括投票理由和投票决定"""
+    reason: str = Field(description="玩家投票前的分析和理由")
+    decision: int = Field(description="玩家投给的玩家数字ID")
+
+vote_llm = llm.with_structured_output(Vote, method="function_calling")
+
 
 
 def voting_start_node(state: State):
@@ -16,7 +25,7 @@ def voting_start_node(state: State):
             "game_round": state["game_round"],
             "player_total": state["player_total"],
             "player": player, 
-            "word": state["word_spy"] if player is state["spy_id"] else state["word_civilian"],
+            "word": state["word_spy"] if player == state["spy_id"] else state["word_civilian"],
             "history": state['history']
         }) for player in state["present_players"]
     ])
@@ -27,18 +36,17 @@ def voting_player_node(state: VotingState):
 
     print(f"> 玩家 {player} 开始投票...")
 
-    msg = llm.invoke([
+    vote: Vote = vote_llm.invoke([
         SystemMessage(content=get_rules_prompt(state["player_total"])),
         HumanMessage(content=get_voting_prompt(player, state["word"], state["history"])),
     ])
 
-    reason, decision = [part.strip() for part in msg.content.split("+++")]
-    decision = int(decision)
+    reason, decision = vote.reason, vote.decision
 
     print(f"> 玩家 {player} 投票理由：{reason}")
     print(f"> 玩家 {player} 投票结果：玩家 {decision}")
 
-    return Command(update={
+    return {
         "history": [
             RawRecord(is_private=True, read_only_by=player, content=f"玩家 {player} 内心独白：{reason}"),
             RawRecord(content=f"玩家 {player} 投给：玩家 {decision}"),
@@ -49,7 +57,7 @@ def voting_player_node(state: VotingState):
             decision=decision,
             reason=reason,
         )]
-    }, goto="voting_end_node")
+    }
 
 
 def voting_end_node(state: State):
@@ -88,15 +96,7 @@ def voting_end_node(state: State):
             "winner": PlayerIdentity.CIVILIAN,
         }, goto=END)
 
-    if len(present_players) == 2:
-        # 剩余两人，卧底胜利
-        print(f"> 第 {round} 轮投票结果：玩家 {eliminated_player}（平民）被淘汰，剩余两人，卧底（玩家 {state['spy_id']}）胜利！")
-        return Command(update={
-            "history": [RawRecord(content=f"第 {round} 轮投票结果：玩家 {eliminated_player} （平民）被淘汰，剩余两人，卧底（玩家 {state['spy_id']}）胜利！")],
-            "present_players": present_players,
-            "winner": PlayerIdentity.SPY,
-        }, goto=END)
-    else:
+    if len(present_players) > 2:
         # 游戏继续，进入下一轮
         print(f"> 第 {round} 轮投票结果：玩家 {eliminated_player}（平民）被淘汰！游戏进入下一轮...")
         return Command(update={
@@ -105,3 +105,11 @@ def voting_end_node(state: State):
             "game_round": round + 1,
             "stage": GameStage.STATEMENT,
         }, goto="statement_node")
+    else:
+        # 剩余两人，卧底胜利
+        print(f"> 第 {round} 轮投票结果：玩家 {eliminated_player}（平民）被淘汰，剩余两人，卧底（玩家 {state['spy_id']}）胜利！")
+        return Command(update={
+            "history": [RawRecord(content=f"第 {round} 轮投票结果：玩家 {eliminated_player} （平民）被淘汰，剩余两人，卧底（玩家 {state['spy_id']}）胜利！")],
+            "present_players": present_players,
+            "winner": PlayerIdentity.SPY,
+        }, goto=END)
