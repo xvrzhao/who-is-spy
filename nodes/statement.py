@@ -1,9 +1,8 @@
-from langchain.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage, ToolCall, ToolCallChunk
-from langgraph.types import Command, Send
+from langchain.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
-from state import State, GameStage, StateRecord, VoteRecord, PlayerIdentity, RawRecord
-from prompts import get_rules_prompt, get_statement_prompt, get_voting_prompt
+from state import State, GameStage, StateRecord, RawRecord
+from prompts import get_rules_prompt, get_statement_prompt
 from llm import llm
 
 class Statement(BaseModel):
@@ -11,30 +10,30 @@ class Statement(BaseModel):
     thinking: str = Field(description="玩家发言前的思考")
     content: str = Field(description="玩家发言内容")
 
-state_llm = llm.with_structured_output(Statement, method="function_calling")
+state_llm = llm.with_structured_output(Statement, method="function_calling").with_retry()
 
-def statement_node(state: State):
-    history = []
 
-    # 若为新一轮开始
-    if state["active_player_ptr"] == 0:
-        print(f"> 第 {state['game_round']} 轮发言开始...")
-        history.append(RawRecord(content=f"------ 第 {state['game_round']} 轮发言阶段：------"))
+def statement_start_node(state: State):
+    """发言阶段开始节点"""
+
+    print(f"> 第 {state['game_round']} 轮发言开始...")
+    return State(history=[RawRecord(content=f"------ 第 {state['game_round']} 轮发言阶段：------")])
+
+
+async def statement_player_node(state: State):
+    """玩家发言节点"""
 
     present_players = state["present_players"]
     active_player_ptr = state["active_player_ptr"]
-    current_player = present_players[active_player_ptr]
 
+    current_player = present_players[active_player_ptr]
     current_word = state["word_spy"] if current_player == state['spy_id'] else state["word_civilian"]
 
     print(f"> 玩家 {current_player} 思考中...")
 
-    p = get_statement_prompt(current_player, current_word, state["history"]+history)
-    if state["game_round"] > 1:
-        print(p)
-    stmt: Statement = state_llm.invoke([
+    stmt: Statement = await state_llm.ainvoke([
         SystemMessage(content=get_rules_prompt(state["player_total"])),
-        HumanMessage(content=p),
+        HumanMessage(content=get_statement_prompt(current_player, current_word, state["history"])),
     ])
 
     thinking, statement = stmt.thinking, stmt.content
@@ -42,37 +41,35 @@ def statement_node(state: State):
     print(f"> 玩家 {current_player} 发言思考：{thinking}")
     print(f"> 玩家 {current_player} 发言内容：{statement}")
 
-    history.append(RawRecord(is_private=True, read_only_by=current_player, content=f"玩家 {current_player} 内心独白：{thinking}"))
-    history.append(RawRecord(content=f"玩家 {current_player} 发言：{statement}"))
+    append_state_records = [
+        StateRecord(game_round=state['game_round'], player_id=current_player, content=statement, thinking=thinking)
+    ]
 
-    if active_player_ptr >= len(present_players) - 1:
-        # 本轮所有玩家发言结束，进入投票阶段
-        return Command(
-            update={
-                "stage": GameStage.VOTING,
-                "active_player_ptr": 0,
-                "state_history": [StateRecord(
-                    game_round=state['game_round'], 
-                    player_id=current_player, 
-                    content=statement, 
-                    thinking=thinking,
-                )],
-                "history": history,
-            }, 
-            goto="voting_start_node",
-        )
-    else:
-        # 下一个玩家发言
-        return Command(
-            update={
-                "active_player_ptr": active_player_ptr + 1,
-                "state_history": [StateRecord(
-                    game_round=state['game_round'], 
-                    player_id=current_player, 
-                    content=statement, 
-                    thinking=thinking,
-                )],
-                "history": history,
-            },
-            goto="statement_node",
-        )
+    append_raw_records = [
+        RawRecord(is_private=True, read_only_by=current_player, content=f"玩家 {current_player} 内心独白：{thinking}"),
+        RawRecord(content=f"玩家 {current_player} 发言：{statement}"),
+    ]
+
+    return {
+        "active_player_ptr": active_player_ptr + 1, # 若本次发言已经为最后一名玩家，+1 后指针会越界，statement_end 节点中将指针重置
+        "state_history": append_state_records,
+        "history": append_raw_records,
+    }
+
+
+def route_after_statement(state: State) -> str:
+    """statement_player_node 的条件路由"""
+
+    # 指针越界说明本轮所有玩家都已发言
+    if state["active_player_ptr"] >= len(state["present_players"]):
+        return "end"
+    return "continue"
+
+
+def statement_end_node(state: State):
+    """发言阶段结束节点"""
+    print(f"> 第 {state['game_round']} 轮发言结束...")
+    return {
+        "stage": GameStage.VOTING,
+        "active_player_ptr": 0,
+    }

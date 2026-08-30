@@ -1,9 +1,7 @@
 from os import getenv
 
-from langchain_deepseek import ChatDeepSeek
 from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
 
 load_dotenv()
 

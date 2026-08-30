@@ -3,8 +3,7 @@ from random import choice, randint, sample
 from state import RawRecord
 
 
-# 出题主题域：每次调用随机抽取一个，把采样起点分散到不同语义区域，
-# 避免相同 prompt 下模型每次都落回同一个最高频词对（苹果/梨、饺子/馄饨之类）
+# 出题主题域：每次调用随机抽取一个，避免相同 prompt 下模型每次都落回同一个最高频词对（苹果/梨、饺子/馄饨之类）
 WORD_TOPICS = [
     "水果蔬菜", "饮品", "主食小吃", "甜品零食", "调味料",
     "哺乳动物", "鸟类", "昆虫", "水生动物", "植物花卉",
@@ -78,15 +77,11 @@ def get_statement_prompt(player_id: int, your_word: str, history: list[RawRecord
     records = [record.content for record in history if (not record.is_private) or (record.is_private and record.read_only_by == player_id)]
     return f"""你是玩家 {player_id}，你的词语是“{your_word}”。
 
----
-
 以下是游戏中各玩家的发言和投票记录（若记录中还没有玩家发言，表明你是第一个）：
 
 ```
 {"\n".join(records)}
 ```
-
----
 
 注意：
 1. 以上记录中，发言记录是按照玩家的发言顺序从前至后排列；
@@ -94,7 +89,7 @@ def get_statement_prompt(player_id: int, your_word: str, history: list[RawRecord
 
 现在轮到你发言了，请返回以下两个字段：
 - thinking：你的内心推理，只有你自己可见，后续轮次也只有你能回看。请结合你的词语和以上记录分析：自己更可能是平民还是卧底、哪些玩家的描述与你的词语兼容、谁最可疑，可以直接提到你的词语；
-- content：你的当众发言，所有玩家都能看到。根据 thinking 中的判断来组织——若你可能是卧底，就向平民的描述靠拢伪装自己；若你可能是平民，就与同伴的描述互相印证。不能直接说出词语本身；发言控制在200字以内；
+- content：你的当众发言，所有玩家都能看到。根据 thinking 中的判断来组织——若你可能是卧底，就向平民的描述靠拢伪装自己；若你可能是平民，就与同伴的描述互相印证；不能直接说出词语本身；发言控制在200字以内；不需要做自我介绍；
 
 thinking 和 content 的内容各自保持在一个段落内，不要换行、不要使用列表。通过工具调用返回，不要输出任何其他内容或解释。
 """
@@ -104,15 +99,11 @@ def get_voting_prompt(player_id: int, your_word: str, history: list[RawRecord]):
     records = [record.content for record in history if (not record.is_private) or (record.is_private and record.read_only_by == player_id)]
     return f"""你是玩家 {player_id}，你的词语是“{your_word}”。
 
----
-
 以下是游戏中各玩家的发言和投票记录：
 
 ```
 {"\n".join(records)}
 ```
-
----
 
 注意：
 1. 以上记录中，发言记录是按照玩家的发言顺序从前至后排列；
