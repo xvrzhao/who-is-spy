@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from llm import llm
 from state import State, GameStage
 from prompts import get_words_prompt
-
+from events import emit, GameInitStart, GameInitEnd
 
 class Words(BaseModel):
     """“谁是卧底”游戏中发给玩家的一对词语"""
@@ -14,18 +14,17 @@ class Words(BaseModel):
 
 words_llm = llm.with_structured_output(Words, method="function_calling").with_retry()
 
-async def init_node(state: State):
+async def game_init_node(state: State):
     player_total = state["player_total"]
     real_player_id = randint(1, player_total)
     spy_id = randint(1, player_total)
 
-    print("> 初始化阶段，获取词语中...")
+    emit(GameInitStart())
 
     words: Words = await words_llm.ainvoke(get_words_prompt())
     word_civilian, word_spy = words.word_civilian, words.word_spy
 
-    print(f"> 获取词语完成, 平民词: {word_civilian}, 卧底词: {word_spy}")
-    print(f"> 卧底是：玩家 {spy_id}")
+    emit(GameInitEnd(real_player_id=real_player_id, real_player_word=word_spy if real_player_id == spy_id else word_civilian))
 
     return State(
         player_total=player_total,

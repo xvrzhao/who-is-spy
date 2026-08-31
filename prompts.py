@@ -91,8 +91,7 @@ def get_statement_prompt(player_id: int, your_word: str, history: list[RawRecord
 - thinking：你的内心推理，只有你自己可见，后续轮次也只有你能回看。请结合你的词语和以上记录分析：自己更可能是平民还是卧底、哪些玩家的描述与你的词语兼容、谁最可疑，可以直接提到你的词语；
 - content：你的当众发言，所有玩家都能看到。根据 thinking 中的判断来组织——若你可能是卧底，就向平民的描述靠拢伪装自己；若你可能是平民，就与同伴的描述互相印证；不能直接说出词语本身；发言控制在200字以内；不需要做自我介绍；
 
-thinking 和 content 的内容各自保持在一个段落内，不要换行、不要使用列表。通过工具调用返回，不要输出任何其他内容或解释。
-"""
+thinking 和 content 的内容各自保持在一个段落内，不要换行、不要使用列表。通过工具调用返回，不要输出任何其他内容或解释。"""
 
 
 def get_voting_prompt(player_id: int, your_word: str, history: list[RawRecord]):
@@ -113,5 +112,4 @@ def get_voting_prompt(player_id: int, your_word: str, history: list[RawRecord]):
 - reason：你的投票分析，只有你自己可见，后续轮次也只有你能回看。请结合你的词语和以上记录推理：哪些玩家的描述与你的词语兼容、谁最可能是卧底、为什么要投给该玩家，可以直接提到你的词语；
 - decision：你要投给的玩家的数字ID，只能投给尚未被淘汰的玩家；
 
-reason 的内容保持在一个段落内，不要换行、不要使用列表。通过工具调用返回，不要输出任何其他内容或解释。
-"""
+reason 的内容保持在一个段落内，不要换行、不要使用列表。通过工具调用返回，不要输出任何其他内容或解释。"""

@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from state import State, GameStage, StateRecord, RawRecord
 from prompts import get_rules_prompt, get_statement_prompt
 from llm import llm
+from events import emit, StatementStart, StatementPlayerStart, StatementPlayerEnd, StatementEnd
 
 class Statement(BaseModel):
     """玩家发言，包括发言思考和发言内容"""
@@ -16,7 +17,8 @@ state_llm = llm.with_structured_output(Statement, method="function_calling").wit
 def statement_start_node(state: State):
     """发言阶段开始节点"""
 
-    print(f"> 第 {state['game_round']} 轮发言开始...")
+    emit(StatementStart(game_round=state["game_round"]))
+
     return State(history=[RawRecord(content=f"------ 第 {state['game_round']} 轮发言阶段：------")])
 
 
@@ -29,17 +31,22 @@ async def statement_player_node(state: State):
     current_player = present_players[active_player_ptr]
     current_word = state["word_spy"] if current_player == state['spy_id'] else state["word_civilian"]
 
-    print(f"> 玩家 {current_player} 思考中...")
+    emit(StatementPlayerStart(player_id=current_player))
+
+    stmt_prompt = get_statement_prompt(current_player, current_word, state["history"])
+
+    # debug code
+    # if current_player == state["player_total"] and state["game_round"] > 1:
+    #     print("\n", "-"*20, "\n", stmt_prompt, "\n", "-"*20)
 
     stmt: Statement = await state_llm.ainvoke([
         SystemMessage(content=get_rules_prompt(state["player_total"])),
-        HumanMessage(content=get_statement_prompt(current_player, current_word, state["history"])),
+        HumanMessage(content=stmt_prompt),
     ])
 
     thinking, statement = stmt.thinking, stmt.content
 
-    print(f"> 玩家 {current_player} 发言思考：{thinking}")
-    print(f"> 玩家 {current_player} 发言内容：{statement}")
+    emit(StatementPlayerEnd(player_id=current_player, statement=statement))
 
     append_state_records = [
         StateRecord(game_round=state['game_round'], player_id=current_player, content=statement, thinking=thinking)
@@ -68,7 +75,10 @@ def route_after_statement(state: State) -> str:
 
 def statement_end_node(state: State):
     """发言阶段结束节点"""
-    print(f"> 第 {state['game_round']} 轮发言结束...")
+
+    # print(f"> 第 {state['game_round']} 轮发言结束...")
+    emit(StatementEnd(game_round=state["game_round"]))
+
     return {
         "stage": GameStage.VOTING,
         "active_player_ptr": 0,
