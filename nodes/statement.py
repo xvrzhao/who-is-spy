@@ -1,4 +1,5 @@
 from langchain.messages import HumanMessage, SystemMessage
+from langgraph.types import interrupt
 from pydantic import BaseModel, Field
 
 from state import State, GameStage, StateRecord, RawRecord
@@ -31,31 +32,37 @@ async def statement_player_node(state: State):
     current_player = present_players[active_player_ptr]
     current_word = state["word_spy"] if current_player == state['spy_id'] else state["word_civilian"]
 
-    emit(StatementPlayerStart(player_id=current_player))
+    if current_player == state["real_player_id"]:
+        # 真实用户发言
+        real_player_statement = interrupt({"interrupt": "need_statement"})
+        append_state_records = [StateRecord(game_round=state['game_round'], player_id=current_player, content=real_player_statement, thinking="")]
+        append_raw_records = [RawRecord(content=f"玩家 {current_player} 发言：{real_player_statement}")]
+    else:
+        # Agent 用户发言
+        emit(StatementPlayerStart(player_id=current_player))
 
-    stmt_prompt = get_statement_prompt(current_player, current_word, state["history"])
+        stmt_prompt = get_statement_prompt(current_player, current_word, state["history"])
 
-    # debug code
-    # if current_player == state["player_total"] and state["game_round"] > 1:
-    #     print("\n", "-"*20, "\n", stmt_prompt, "\n", "-"*20)
+        # debug code
+        # print("\n", "-"*40, "\n", stmt_prompt, "\n", "-"*40)
 
-    stmt: Statement = await state_llm.ainvoke([
-        SystemMessage(content=get_rules_prompt(state["player_total"])),
-        HumanMessage(content=stmt_prompt),
-    ])
+        stmt: Statement = await state_llm.ainvoke([
+            SystemMessage(content=get_rules_prompt(state["player_total"])),
+            HumanMessage(content=stmt_prompt),
+        ])
 
-    thinking, statement = stmt.thinking, stmt.content
+        thinking, statement = stmt.thinking, stmt.content
 
-    emit(StatementPlayerEnd(player_id=current_player, statement=statement))
+        emit(StatementPlayerEnd(player_id=current_player, statement=statement))
 
-    append_state_records = [
-        StateRecord(game_round=state['game_round'], player_id=current_player, content=statement, thinking=thinking)
-    ]
+        append_state_records = [
+            StateRecord(game_round=state['game_round'], player_id=current_player, content=statement, thinking=thinking)
+        ]
 
-    append_raw_records = [
-        RawRecord(is_private=True, read_only_by=current_player, content=f"玩家 {current_player} 内心独白：{thinking}"),
-        RawRecord(content=f"玩家 {current_player} 发言：{statement}"),
-    ]
+        append_raw_records = [
+            RawRecord(is_private=True, read_only_by=current_player, content=f"玩家 {current_player} 内心独白：{thinking}"),
+            RawRecord(content=f"玩家 {current_player} 发言：{statement}"),
+        ]
 
     return {
         "active_player_ptr": active_player_ptr + 1, # 若本次发言已经为最后一名玩家，+1 后指针会越界，statement_end 节点中将指针重置

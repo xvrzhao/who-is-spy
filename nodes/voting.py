@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from langchain.messages import HumanMessage, SystemMessage
-from langgraph.types import Command, Send
+from langgraph.types import Command, Send, interrupt
 from langgraph.graph import END
 from pydantic import BaseModel, Field
 
@@ -22,9 +22,10 @@ vote_llm = llm.with_structured_output(Vote, method="function_calling").with_retr
 class VotingState:
     game_round: int
     player_total: int
-    player: int
-    word: str
+    player: int # 投票人ID
+    word: str   # 投票人手持的词语
     history: list[RawRecord]
+    real_player_id: int # 本局游戏的真实玩家ID
 
 
 def voting_start_node(state: State):
@@ -42,32 +43,42 @@ def fanout_to_voting_players(state: State):
         player=player,
         word=state["word_spy"] if player == state["spy_id"] else state["word_civilian"],
         history=state['history'],
+        real_player_id=state["real_player_id"]
     )) for player in state["present_players"]]
 
 
 async def voting_player_node(state: VotingState):
-    emit(VotePlayerStart(player_id=state.player))
+    if state.player == state.real_player_id:
+        # 真实用户投票
+        real_player_decision = interrupt({"interrupt": "need_vote"})
+        real_player_decision = int(real_player_decision)
+        append_vote_records = [VoteRecord(game_round=state.game_round, voter_id=state.real_player_id, decision=real_player_decision, reason="")]
+        append_raw_records = [RawRecord(content=f"玩家 {state.real_player_id} 投给：玩家 {real_player_decision}")]
+    else:
+        # Agent 用户投票
+        emit(VotePlayerStart(player_id=state.player))
 
-    vote: Vote = await vote_llm.ainvoke([
-        SystemMessage(content=get_rules_prompt(state.player_total)),
-        HumanMessage(content=get_voting_prompt(state.player, state.word, state.history)),
-    ])
+        vote: Vote = await vote_llm.ainvoke([
+            SystemMessage(content=get_rules_prompt(state.player_total)),
+            HumanMessage(content=get_voting_prompt(state.player, state.word, state.history)),
+        ])
 
-    reason, decision = vote.reason, vote.decision
+        reason, decision = vote.reason, vote.decision
 
-    emit(VotePlayerEnd(player_id=state.player, decision=decision))
+        emit(VotePlayerEnd(player_id=state.player, decision=decision))
 
-    return {
-        "history": [
+        append_vote_records = [
+            VoteRecord(game_round=state.game_round, voter_id=state.player, decision=decision, reason=reason),
+        ]
+
+        append_raw_records = [
             RawRecord(is_private=True, read_only_by=state.player, content=f"玩家 {state.player} 内心独白：{reason}"),
             RawRecord(content=f"玩家 {state.player} 投给：玩家 {decision}"),
-        ],
-        "vote_history": [VoteRecord(
-            game_round=state.game_round, 
-            voter_id=state.player, 
-            decision=decision,
-            reason=reason,
-        )]
+        ]
+
+    return {
+        "vote_history": append_vote_records,
+        "history": append_raw_records,
     }
 
 

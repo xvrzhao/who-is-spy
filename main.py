@@ -1,6 +1,7 @@
 import asyncio
 
 from langgraph.graph import StateGraph, START, END
+from langgraph.types import Command
 from langgraph.checkpoint.memory import InMemorySaver
 
 from state import State
@@ -75,12 +76,22 @@ graph = (
 config = {"configurable": {"thread_id": "thread-1"}}
 
 async def main():
-    init_state = State(player_total=6)
-    async for chunk in graph.astream(init_state, config, stream_mode=["custom"], version="v2"):
-        if chunk["type"] != "custom":
-            continue
-        event = chunk["data"]
-        print("Event:", event)
+    game_input = State(player_total=4)
+
+    while True:
+        async for chunk in graph.astream(game_input, config, stream_mode=["custom"], version="v2"):
+            if chunk["type"] != "custom":
+                continue
+            event = chunk["data"]
+            print("Event:", event)
+
+        state = await graph.aget_state(config)
+        if len(state.interrupts) < 1:
+            break
+
+        interrupt_info = state.interrupts[0].value
+        user_input = input(interrupt_info)
+        game_input = Command(resume=user_input)
 
 
 if __name__ == "__main__":
