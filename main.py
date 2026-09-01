@@ -18,6 +18,12 @@ from nodes.voting import (
     voting_end_node,
     route_after_voting,
 )
+from nodes.exchange_session import (
+    exchange_session_start_node,
+    exchange_session_player_node,
+    route_after_exchange,
+    exchange_session_end_node,
+)
 from nodes.game_init import game_init_node
 from nodes.game_over import game_over_node
 
@@ -38,6 +44,10 @@ graph = (
     .add_node(voting_end_node)
     # 游戏结束节点
     .add_node(game_over_node)
+    # 赛后交流节点
+    .add_node(exchange_session_start_node)
+    .add_node(exchange_session_player_node)
+    .add_node(exchange_session_end_node)
 
     .set_entry_point("game_init_node")
     .add_edge("game_init_node", "statement_start_node")
@@ -65,7 +75,17 @@ graph = (
             "game_over": "game_over_node",
         }
     )
-    .add_edge("game_over_node", END)
+    .add_edge("game_over_node", "exchange_session_start_node")
+    .add_edge("exchange_session_start_node", "exchange_session_player_node")
+    .add_conditional_edges(
+        "exchange_session_player_node",
+        route_after_exchange,
+        {
+            "continue": "exchange_session_player_node",
+            "end": "exchange_session_end_node",
+        }
+    )
+    .add_edge("exchange_session_end_node", END)
 
     .compile(checkpointer=checkpointer)
 )

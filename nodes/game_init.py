@@ -3,7 +3,7 @@ from random import randint
 from pydantic import BaseModel, Field
 
 from llm import llm
-from state import State, GameStage
+from state import State
 from prompts import get_words_prompt
 from events import emit, GameInitStart, GameInitEnd
 
@@ -14,7 +14,7 @@ class Words(BaseModel):
 
 words_llm = llm.with_structured_output(Words, method="function_calling").with_retry()
 
-async def game_init_node(state: State):
+async def game_init_node(state: State) -> State:
     player_total = state["player_total"]
     real_player_id = randint(1, player_total)
     spy_id = randint(1, player_total)
@@ -33,7 +33,7 @@ async def game_init_node(state: State):
         word_civilian=word_civilian,
         word_spy=word_spy,
         game_round=1,
-        stage=GameStage.STATEMENT,
+        stage="statement",
         present_players=[i for i in range(1, player_total+1)],
         active_player_ptr=0,
         state_history=[],

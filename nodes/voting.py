@@ -1,14 +1,14 @@
-from dataclasses import dataclass
+from typing import TypedDict
 
 from langchain.messages import HumanMessage, SystemMessage
 from langgraph.types import Command, Send, interrupt
 from langgraph.graph import END
 from pydantic import BaseModel, Field
 
-from state import State, GameStage, VoteRecord, PlayerIdentity, RawRecord
+from state import State, VoteRecord, RawRecord
 from prompts import get_rules_prompt, get_voting_prompt
 from llm import llm
-from events import emit, VoteStart, VotePlayerStart, VotePlayerEnd, VoteEnd
+from events import emit, VoteStart, VotePlayerStart, VotePlayerEnd, VoteEnd, PlayerIdentity
 
 class Vote(BaseModel):
     """玩家投票，包括投票理由和投票决定"""
@@ -18,8 +18,7 @@ class Vote(BaseModel):
 vote_llm = llm.with_structured_output(Vote, method="function_calling").with_retry()
 
 
-@dataclass
-class VotingState:
+class VotingState(TypedDict):
     game_round: int
     player_total: int
     player: int # 投票人ID
@@ -28,11 +27,11 @@ class VotingState:
     real_player_id: int # 本局游戏的真实玩家ID
 
 
-def voting_start_node(state: State):
+def voting_start_node(state: State) -> State:
     emit(VoteStart(game_round=state["game_round"]))
 
     return {
-        "history": [RawRecord(content=f"------ 第 {state['game_round']} 轮投票阶段：------")],
+        "history": [RawRecord(content=f"------ 第 {state['game_round']} 轮投票阶段 ------", is_private=False, read_only_by=None)],
     }
 
 
@@ -47,33 +46,31 @@ def fanout_to_voting_players(state: State):
     )) for player in state["present_players"]]
 
 
-async def voting_player_node(state: VotingState):
-    if state.player == state.real_player_id:
+async def voting_player_node(state: VotingState) -> State:
+    if state["player"] == state["real_player_id"]:
         # 真实用户投票
         real_player_decision = interrupt({"interrupt": "need_vote"})
         real_player_decision = int(real_player_decision)
-        append_vote_records = [VoteRecord(game_round=state.game_round, voter_id=state.real_player_id, decision=real_player_decision, reason="")]
-        append_raw_records = [RawRecord(content=f"玩家 {state.real_player_id} 投给：玩家 {real_player_decision}")]
+        append_vote_records = [VoteRecord(game_round=state["game_round"], voter_id=state["real_player_id"], decision=real_player_decision, reason="")]
+        append_raw_records = [RawRecord(content=f"玩家 {state['real_player_id']} 投给：玩家 {real_player_decision}", is_private=False, read_only_by=None)]
     else:
         # Agent 用户投票
-        emit(VotePlayerStart(player_id=state.player))
+        emit(VotePlayerStart(player_id=state["player"]))
 
         vote: Vote = await vote_llm.ainvoke([
-            SystemMessage(content=get_rules_prompt(state.player_total)),
-            HumanMessage(content=get_voting_prompt(state.player, state.word, state.history)),
+            SystemMessage(content=get_rules_prompt(state["player_total"])),
+            HumanMessage(content=get_voting_prompt(state["player"], state["word"], state["history"])),
         ])
-
         reason, decision = vote.reason, vote.decision
 
-        emit(VotePlayerEnd(player_id=state.player, decision=decision))
+        emit(VotePlayerEnd(player_id=state["player"]))
 
         append_vote_records = [
-            VoteRecord(game_round=state.game_round, voter_id=state.player, decision=decision, reason=reason),
+            VoteRecord(game_round=state["game_round"], voter_id=state["player"], decision=decision, reason=reason),
         ]
-
         append_raw_records = [
-            RawRecord(is_private=True, read_only_by=state.player, content=f"玩家 {state.player} 内心独白：{reason}"),
-            RawRecord(content=f"玩家 {state.player} 投给：玩家 {decision}"),
+            RawRecord(content=f"玩家 {state['player']} 内心独白：{reason}", is_private=True, read_only_by=state["player"]),
+            RawRecord(content=f"玩家 {state['player']} 投给：玩家 {decision}", is_private=False, read_only_by=None),
         ]
 
     return {
@@ -82,7 +79,7 @@ async def voting_player_node(state: VotingState):
     }
 
 
-def voting_end_node(state: State):
+def voting_end_node(state: State) -> State:
     round = state['game_round']
     votes = state['vote_history']
     votes = [vote for vote in votes if vote["game_round"] == round]
@@ -113,9 +110,9 @@ def voting_end_node(state: State):
         ))
 
         return {
-            "history": [RawRecord(content=f"第 {round} 轮投票结果：平票，无人淘汰！游戏进入下一轮...")],
+            "history": [RawRecord(content=f"第 {round} 轮投票结果：平票，无人淘汰！游戏进入下一轮...", is_private=False, read_only_by=None)],
             "game_round": round + 1,
-            "stage": GameStage.STATEMENT,
+            "stage": "statement",
         }
 
 
@@ -135,9 +132,9 @@ def voting_end_node(state: State):
         ))
 
         return {
-            "history": [RawRecord(content=f"第 {round} 轮投票结果：玩家 {eliminated_player} （卧底）被淘汰！平民胜利！")],
+            "history": [RawRecord(content=f"第 {round} 轮投票结果：玩家 {eliminated_player} （卧底）被淘汰！平民胜利！", is_private=False, read_only_by=None)],
             "present_players": present_players,
-            "winner": PlayerIdentity.CIVILIAN,
+            "winner": "civilian",
         }
 
 
@@ -153,10 +150,10 @@ def voting_end_node(state: State):
         ))
 
         return {
-            "history": [RawRecord(content=f"第 {round} 轮投票结果：玩家 {eliminated_player} （平民）被淘汰！游戏进入下一轮...")],
+            "history": [RawRecord(content=f"第 {round} 轮投票结果：玩家 {eliminated_player} （平民）被淘汰！游戏进入下一轮...", is_private=False, read_only_by=None)],
             "present_players": present_players,
             "game_round": round + 1,
-            "stage": GameStage.STATEMENT,
+            "stage": "statement",
         }
     
     else:
@@ -171,14 +168,14 @@ def voting_end_node(state: State):
         ))
 
         return {
-            "history": [RawRecord(content=f"第 {round} 轮投票结果：玩家 {eliminated_player} （平民）被淘汰！剩余两人，卧底（玩家 {state['spy_id']}）胜利！")],
+            "history": [RawRecord(content=f"第 {round} 轮投票结果：玩家 {eliminated_player} （平民）被淘汰！剩余两人，卧底（玩家 {state['spy_id']}）胜利！", is_private=False, read_only_by=None)],
             "present_players": present_players,
-            "winner": PlayerIdentity.SPY,
+            "winner": "spy",
         }
 
 
-def route_after_voting(state: State):
-    if state["stage"] == GameStage.STATEMENT:
+def route_after_voting(state: State) -> str:
+    if state["stage"] == "statement":
         return "next_round"
     else:
         return "game_over"

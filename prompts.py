@@ -74,7 +74,7 @@ def get_rules_prompt(player_num: int):
 
 
 def get_statement_prompt(player_id: int, your_word: str, history: list[RawRecord]):
-    records = [record.content for record in history if (not record.is_private) or (record.is_private and record.read_only_by == player_id)]
+    records = [record["content"] for record in history if not record["is_private"] or record["read_only_by"] == player_id]
     return f"""你是玩家 {player_id}，你的词语是“{your_word}”。
 
 以下是游戏中各玩家的发言和投票记录（若记录中还没有玩家发言，表明你是第一个）：
@@ -95,7 +95,7 @@ thinking 和 content 的内容各自保持在一个段落内，不要换行、�
 
 
 def get_voting_prompt(player_id: int, your_word: str, history: list[RawRecord]):
-    records = [record.content for record in history if (not record.is_private) or (record.is_private and record.read_only_by == player_id)]
+    records = [record["content"] for record in history if not record["is_private"] or record["read_only_by"] == player_id]
     return f"""你是玩家 {player_id}，你的词语是“{your_word}”。
 
 以下是游戏中各玩家的发言和投票记录：

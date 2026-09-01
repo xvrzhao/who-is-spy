@@ -1,10 +1,14 @@
+from enum import Enum
 from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, Field
 from langgraph.config import get_stream_writer
 
-from state import PlayerIdentity
 
+class PlayerIdentity(str, Enum):
+    """玩家身份"""
+    CIVILIAN = "civilian"
+    SPY = "spy"
 
 class Event(BaseModel):
     """custom stream 事件基类"""
@@ -54,7 +58,6 @@ class VotePlayerStart(Event):
 class VotePlayerEnd(Event):
     type: Literal["vote_player_end"] = "vote_player_end"
     player_id: int
-    decision: int
 
 
 class VoteEnd(Event):
@@ -76,6 +79,21 @@ class GameOver(Event):
     word_spy: str
     word_civilian: str
 
+
+class ExchangeSessionStart(Event):
+    type: Literal["exchange_session_start"] = "exchange_session_start"
+
+
+class ExchangeSessionPlayerStart(Event):
+    type: Literal["exchange_session_player_start"] = "exchange_session_player_start"
+    player_id: int
+
+
+class ExchangeSessionPlayerEnd(Event):
+    type: Literal["exchange_session_player_end"] = "exchange_session_player_end"
+    player_id: int      # 发言玩家
+    content: str        # 发言内容
+    next_player_id: int # 让哪一位玩家接话
 
 
 def emit(event: Event) -> None:
