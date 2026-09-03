@@ -97,7 +97,7 @@ config = {"configurable": {"thread_id": "thread-1"}}
 
 interrupt_prompts = {
     "need_statement": "轮到你发言了，请输入你的发言内容：",
-    "need_vote": "轮到你投票了，请输入你要投票的玩家ID：",
+    "need_vote": "轮到你投票了，请输入你要投票的玩家ID（输入 0 表示弃票）：",
     "need_exchange": "轮到你交流发言了。输入格式：发言内容|玩家ID（玩家ID为指定下一位发言的玩家，不能选自己），如：刚才真没看出你是卧底|2\n请输入：",
 }
 

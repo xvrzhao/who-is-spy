@@ -16,7 +16,7 @@ class VoteRecord(TypedDict):
     """投票记录"""
     game_round: int
     voter_id: int
-    decision: int # 投给谁
+    decision: int # 投给谁，0 表示弃票
     reason: str
     
 class RawRecord(TypedDict):

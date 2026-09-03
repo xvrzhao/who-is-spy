@@ -59,9 +59,10 @@ class VotePlayerEnd(Event):
 class VoteEnd(Event):
     type: Literal["vote_end"] = "vote_end"
     game_round: int
-    vote_collect: dict[int, list[int]]                          # 每位玩家的得票
-    eliminated_player: int | None = None                        # 被淘汰的玩家，平票为 None
-    eliminated_player_identity: PlayerIdentity | None = None    # 被淘汰玩家身份，平票为 None
+    vote_collect: dict[int, list[int]]                          # 每位玩家的得票（弃票不计入）
+    abstain_voters: list[int] = []                              # 本轮弃票的玩家
+    eliminated_player: int | None = None                        # 被淘汰的玩家，平票/全员弃票为 None
+    eliminated_player_identity: PlayerIdentity | None = None    # 被淘汰玩家身份，平票/全员弃票为 None
     present_players: list[int]                                  # 淘汰后在场玩家 ID 列表
 
 
