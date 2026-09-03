@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from state import State, VoteRecord, RawRecord
 from prompts import get_rules_prompt, get_voting_prompt
 from llm import llm
-from events import emit, VoteStart, VotePlayerStart, VotePlayerEnd, VoteEnd, PlayerIdentity
+from events import emit, VoteStart, VotePlayerStart, VotePlayerEnd, VoteEnd
 
 class Vote(BaseModel):
     """玩家投票，包括投票理由和投票决定"""
@@ -127,7 +127,7 @@ def voting_end_node(state: State) -> State:
             game_round=round, 
             vote_collect=vote_collect, 
             eliminated_player=eliminated_player, 
-            eliminated_player_identity=PlayerIdentity.SPY,
+            eliminated_player_identity="spy",
             present_players=present_players,
         ))
 
@@ -145,7 +145,7 @@ def voting_end_node(state: State) -> State:
             game_round=round,
             vote_collect=vote_collect,
             eliminated_player=eliminated_player,
-            eliminated_player_identity=PlayerIdentity.CIVILIAN,
+            eliminated_player_identity="civilian",
             present_players=present_players,
         ))
 
@@ -163,7 +163,7 @@ def voting_end_node(state: State) -> State:
             game_round=round,
             vote_collect=vote_collect,
             eliminated_player=eliminated_player,
-            eliminated_player_identity=PlayerIdentity.CIVILIAN,
+            eliminated_player_identity="civilian",
             present_players=present_players,
         ))
 

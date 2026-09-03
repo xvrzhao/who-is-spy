@@ -1,6 +1,6 @@
 from random import choice, randint, sample
 
-from state import RawRecord
+from state import RawRecord, PlayerIdentity
 
 
 # 出题主题域：每次调用随机抽取一个，避免相同 prompt 下模型每次都落回同一个最高频词对（苹果/梨、饺子/馄饨之类）
@@ -39,11 +39,11 @@ def get_words_prompt():
 请先在脑中构思 10 组不同的候选词对，然后只输出其中的第 {index} 组，通过工具调用返回，不要输出任何其他内容或解释。"""
 
 
-def get_rules_prompt(player_num: int):
+def get_rules_prompt(player_total: int):
     return f"""你正在参与“谁是卧底”游戏，游戏规则如下：
 
 ### 游戏参与方
-- {player_num} 个玩家（玩家中包含 1 个卧底，其他玩家均为平民）；
+- {player_total} 个玩家（玩家中包含 1 个卧底，其他玩家均为平民）；
 - 每个玩家均不知道自己的身份；
 - 每个玩家的名称为：玩家+数字ID，如：玩家 1，玩家 2，...
 - 玩家之间互称对方为：玩家ID+号，例如：1号、2号...
@@ -68,7 +68,7 @@ def get_rules_prompt(player_num: int):
 
 ### 游戏技巧
 1. 因为玩家不知道自己的身份，有可能自己是平民，也有可能是卧底，所以需要根据各个玩家的发言和投票，来猜测和判断；
-2. 在最开始，最好不要将自己的词语描述的太详细，要根据其他玩家的描述情况来揣测自己是不是与众不同的那个（卧底）；
+2. 在前几轮，最好不要将自己的词语描述的太详细，先试探性地模糊描述，要根据其他玩家的描述情况来揣测自己是不是与众不同的那个（卧底）；
 3. 若发现其他玩家有可能和自己是一样的词语（自己有可能是平民），则可以给对方更多的暗示，让对方感受到你和他是一队的（都是平民）；
 4. 若发现自己可能和其他玩家的词语都不一样，自己有可能是卧底，那么要将自己伪装成和其他玩家是一样的词语，让他们误投，来争取自己最后的胜利；"""
 
@@ -113,3 +113,36 @@ def get_voting_prompt(player_id: int, your_word: str, history: list[RawRecord]):
 - decision：你要投给的玩家的数字ID，只能投给尚未被淘汰的玩家；
 
 reason 的内容保持在一个段落内，不要换行、不要使用列表。通过工具调用返回，不要输出任何其他内容或解释。"""
+
+
+def get_exchange_prompt(player_id: int, your_identity: PlayerIdentity, your_word: str, another_word: str, is_win: bool, history: list[RawRecord], exchange_history: list[str]) -> str:
+    records = [record["content"] for record in history if not record["is_private"] or record["read_only_by"] == player_id]
+    return f"""你是玩家 {player_id}，你在游戏开始时被分配的词语是“{your_word}”。
+
+现在游戏已经结束，以下是游戏中各玩家的发言、投票记录、最后的胜负结果和双方的词语：
+
+```
+{"\n".join(records)}
+```
+
+注意：
+1. 以上记录中，发言记录是按照玩家的发言顺序从前至后排列；
+2. 投票阶段，各玩家同时投票，在投票时，各玩家看不到其他玩家投谁，所以投票记录不分先后顺序。所有人都投票之后，才能看到谁投了谁和最后的投票结果；
+3. 最后一轮的投票阶段，游戏结束，公布谁赢了、谁是卧底之后，才知道其他人手持的词语分别是什么；
+4. 根据游戏记录可能会发现有这样的情况：最后卧底词揭晓，发现卧底全程发言都在描述平民词的特征。这可能是卧底中途已经发现自己的卧底身份，在伪装自己，迷惑平民。若发现游戏中有这种情况需要注意分辨。
+5. 根据游戏记录和结果可以得知，在这局游戏中你是{"卧底" if your_identity == "spy" else "平民"}，你{"赢" if is_win else "输"}了，{"平民" if your_identity == "spy" else "卧底"}的词语是“{another_word}”；
+
+现在游戏结束，大家（包括已淘汰的玩家）开始交流复盘起来，以下是各玩家聊天记录（若记录为空，说明你是第一个；以上聊天记录按照聊天顺序从前到后排列）：
+
+```
+{"\n".join(exchange_history)}
+```
+
+现在该你发言了：
+1. 发言内容没有限制，可以回答其他玩家的疑惑和提问、复盘局内自己的怀疑与判断、聊聊看到揭晓结果后的感受等，有疑惑也可以向对应的玩家提问；
+2. 可以先回应刚才发言的玩家，接着他的话聊，之后再说自己想说的话；
+3. 已经说过的观点和感受不要再重复，如果没有什么新内容可说，可以直接让下一位玩家发言；
+
+请返回以下两个字段：
+- content：你想说的话。内容保持在一个段落内，不要换行、不要使用列表；
+- next_player_id：你想指定谁下一个说话，返回玩家的ID；"""

@@ -3,12 +3,8 @@ from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, Field
 from langgraph.config import get_stream_writer
+from state import PlayerIdentity
 
-
-class PlayerIdentity(str, Enum):
-    """玩家身份"""
-    CIVILIAN = "civilian"
-    SPY = "spy"
 
 class Event(BaseModel):
     """custom stream 事件基类"""
@@ -94,6 +90,10 @@ class ExchangeSessionPlayerEnd(Event):
     player_id: int      # 发言玩家
     content: str        # 发言内容
     next_player_id: int # 让哪一位玩家接话
+
+
+class ExchangeSessionEnd(Event):
+    type: Literal["exchange_session_end"] = "exchange_session_end"
 
 
 def emit(event: Event) -> None:

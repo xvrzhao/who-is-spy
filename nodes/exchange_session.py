@@ -2,10 +2,11 @@ from random import randint
 
 from pydantic import BaseModel, Field
 from langchain.messages import SystemMessage, HumanMessage
+from langgraph.types import interrupt
 
 from state import State, RawRecord
-from prompts import get_rules_prompt
-from events import emit, ExchangeSessionStart, ExchangeSessionPlayerStart, ExchangeSessionPlayerEnd
+from prompts import get_rules_prompt, get_exchange_prompt
+from events import emit, ExchangeSessionStart, ExchangeSessionPlayerStart, ExchangeSessionPlayerEnd, ExchangeSessionEnd
 from llm import llm
 
 
@@ -20,7 +21,7 @@ exchange_llm = llm.with_structured_output(ExchangeStatement, method="function_ca
 def exchange_session_start_node(state: State) -> State:
     emit(ExchangeSessionStart())
     return {
-        "history": [RawRecord(content=f"------ 游戏结束 玩家交流阶段 ------", is_private=False, read_only_by=None)],
+        "exchange_histoty": ["------ 游戏结束 各玩家聊天记录 ------"],
         "exchange_next": randint(1, state["player_total"]),
         "exchange_round": 0,
     }
@@ -30,21 +31,45 @@ async def exchange_session_player_node(state: State) -> State:
     player_id = state["exchange_next"]
 
     if player_id == state["real_player_id"]:
-        # TODO: 补充真实玩家逻辑
-        pass
+        # 真实用户发言
+        real_player_input = interrupt({"interrupt": "need_exchange"})
+        content, next_player_id = real_player_input.rsplit("|", 1)
+        next_player_id = int(next_player_id)
+
+        emit(ExchangeSessionPlayerEnd(player_id=player_id, content=content, next_player_id=next_player_id))
+
+        append_raw_records = [f"玩家{player_id}：{content}"]
+        exchange_next = next_player_id
     else:
         emit(ExchangeSessionPlayerStart(player_id=player_id))
+
+        your_word, another_word = (state["word_spy"], state['word_civilian']) if player_id == state["spy_id"] else (state["word_civilian"], state['word_spy'])
+        your_identity = "spy" if player_id == state["spy_id"] else "civilian"
+        is_win = state["winner"] == your_identity
+        exchange_prompt = get_exchange_prompt(
+            player_id,
+            your_identity,
+            your_word,
+            another_word,
+            is_win,
+            state["history"],
+            state["exchange_histoty"],
+        )
+
+        # debug code
+        # print("\n", "-"*40, "\n", exchange_prompt, "\n", "-"*40)
+
         res: ExchangeStatement = await exchange_llm.ainvoke([
             SystemMessage(content=get_rules_prompt(state["player_total"])),
-            HumanMessage(content="TODO"), # TODO：完善提示词函数
+            HumanMessage(content=exchange_prompt),
         ])
         emit(ExchangeSessionPlayerEnd(player_id=player_id, content=res.content, next_player_id=res.next_player_id))
 
-        append_raw_records = [RawRecord(content=f"玩家 {player_id} 发言：{res.content}", is_private=False, read_only_by=None)]
+        append_raw_records = [f"玩家{player_id}：{res.content}"]
         exchange_next = res.next_player_id
 
     return {
-        "history": append_raw_records,
+        "exchange_histoty": append_raw_records,
         "exchange_next": exchange_next,
         "exchange_round": state["exchange_round"] + 1,
     }
@@ -56,6 +81,9 @@ def route_after_exchange(state: State) -> str:
         return "continue"
 
 
-def exchange_session_end_node(state: State):
-    # TODO: 向客户端 emit 结束事件，以便提示用户是否开启新的一局
-    pass
+def exchange_session_end_node(state: State) -> State:
+    """赛后交流阶段结束节点"""
+
+    emit(ExchangeSessionEnd())
+
+    return {}
