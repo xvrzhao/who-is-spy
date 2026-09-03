@@ -3,7 +3,7 @@ from events import emit, GameOver, PlayerIdentity
 
 def game_over_node(state: State) -> State:
     real_player_identity: PlayerIdentity = "spy" if state["real_player_id"] == state["spy_id"] else "civilian"
-    is_real_player_win = real_player_identity.value == state["winner"]
+    is_real_player_win = real_player_identity == state["winner"]
 
     emit(GameOver(
         winner=state["winner"], 

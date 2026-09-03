@@ -57,7 +57,7 @@ async def exchange_session_player_node(state: State) -> State:
         )
 
         # debug code
-        # print("\n", "-"*40, "\n", exchange_prompt, "\n", "-"*40)
+        print("\n", "-"*40, "\n", exchange_prompt, "\n", "-"*40)
 
         res: ExchangeStatement = await exchange_llm.ainvoke([
             SystemMessage(content=get_rules_prompt(state["player_total"])),
