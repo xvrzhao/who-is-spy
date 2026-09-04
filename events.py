@@ -97,6 +97,16 @@ class ExchangeSessionEnd(Event):
     type: Literal["exchange_session_end"] = "exchange_session_end"
 
 
+class PlayerSpeech(Event):
+    """Agent 发言语音（发言/赛后交流环节）"""
+    type: Literal["player_speech"] = "player_speech"
+    player_id: int
+    text: str                      # 字幕原文
+    audio_base64: str = ""         # mp3 音频 base64
+    audio_format: Literal["mp3"] = "mp3"
+    audio_length_ms: int = 0       # 音频时长毫秒
+
+
 def emit(event: Event) -> None:
     """在节点内调用，将事件写入 custom stream；未启用 streaming 时为 no-op"""
     get_stream_writer()(event)

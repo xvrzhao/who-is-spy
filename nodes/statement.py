@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from state import State, StateRecord, RawRecord
 from prompts import get_rules_prompt, get_statement_prompt
 from llm import llm
+from tts import speak
 from events import emit, StatementStart, StatementPlayerStart, StatementPlayerEnd, StatementEnd
 
 class Statement(BaseModel):
@@ -56,6 +57,7 @@ async def statement_player_node(state: State) -> State:
         thinking, statement = stmt.thinking, stmt.content
 
         emit(StatementPlayerEnd(player_id=current_player, statement=statement))
+        await speak(player_id=current_player, text=statement) # 语音合成 + 下发 PlayerSpeech 事件
 
         append_state_records = [
             StateRecord(game_round=state['game_round'], player_id=current_player, content=statement, thinking=thinking)
@@ -71,6 +73,13 @@ async def statement_player_node(state: State) -> State:
         "state_history": append_state_records,
         "history": append_raw_records,
     }
+
+
+def statement_speech_gate_node(state: State) -> State:
+    """等待客户端确认语音播放完成后再继续"""
+    
+    interrupt({"interrupt": "speech_playback_done"})
+    return {}
 
 
 def route_after_statement(state: State) -> str:

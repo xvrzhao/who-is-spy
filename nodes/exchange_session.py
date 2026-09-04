@@ -8,6 +8,7 @@ from state import State, RawRecord
 from prompts import get_rules_prompt, get_exchange_prompt
 from events import emit, ExchangeSessionStart, ExchangeSessionPlayerStart, ExchangeSessionPlayerEnd, ExchangeSessionEnd
 from llm import llm
+from tts import speak
 
 
 class ExchangeStatement(BaseModel):
@@ -64,6 +65,7 @@ async def exchange_session_player_node(state: State) -> State:
             HumanMessage(content=exchange_prompt),
         ])
         emit(ExchangeSessionPlayerEnd(player_id=player_id, content=res.content, next_player_id=res.next_player_id))
+        await speak(player_id=player_id, text=res.content) # 语音合成 + 下发 PlayerSpeech 事件
 
         append_raw_records = [f"玩家{player_id}：{res.content}"]
         exchange_next = res.next_player_id
@@ -74,8 +76,16 @@ async def exchange_session_player_node(state: State) -> State:
         "exchange_round": state["exchange_round"] + 1,
     }
 
+
+def exchange_speech_gate_node(state: State) -> State:
+    """等待客户端确认语音播放完成后再继续"""
+    
+    interrupt({"interrupt": "speech_playback_done"})
+    return {}
+
+
 def route_after_exchange(state: State) -> str:
-    if state["exchange_round"] >= state["player_total"] * 2:
+    if state["exchange_round"] >= state["player_total"] + 1:
         return "end"
     else:
         return "continue"
