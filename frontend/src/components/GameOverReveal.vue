@@ -22,12 +22,6 @@ const myIdentity = computed(() => (store.reveal?.real_player_identity === 'spy' 
 
 // 对方 = 敌对阵营：我是平民 → 对方是卧底（头像+ID）；我是卧底 → 对方是平民阵营
 const iAmSpy = computed(() => store.reveal?.real_player_identity === 'spy')
-const otherWord = computed(() => {
-  const r = store.reveal
-  if (!r) return ''
-  return iAmSpy.value ? r.word_civilian : r.word_spy
-})
-const otherWordLabel = computed(() => (iAmSpy.value ? '平民词' : '卧底词'))
 </script>
 
 <template>
@@ -48,7 +42,6 @@ const otherWordLabel = computed(() => (iAmSpy.value ? '平民词' : '卧底词')
             </div>
             <div class="side-name">{{ store.reveal.real_player_id }}号 {{ playerName(store.reveal.real_player_id, store.reveal.real_player_id) }}</div>
             <div class="identity" :class="store.reveal.real_player_identity">{{ myIdentity }}</div>
-            <div class="word-chip mine">你的词：{{ iAmSpy ? store.reveal.word_spy : store.reveal.word_civilian }}</div>
           </div>
 
           <div class="vs">VS</div>
@@ -68,7 +61,20 @@ const otherWordLabel = computed(() => (iAmSpy.value ? '平民词' : '卧底词')
               <div class="side-name">平民阵营（{{ store.playerTotal - 1 }} 人）</div>
               <div class="identity civilian">平民</div>
             </template>
-            <div class="word-chip other">{{ otherWordLabel }}：{{ otherWord }}</div>
+          </div>
+        </div>
+
+        <!-- 词语揭晓：两个词并列公开，自己的词带标记 -->
+        <div class="words-reveal">
+          <div class="w-reveal spy">
+            <span class="w-label">卧底词</span>
+            <span class="w-value">{{ store.reveal.word_spy }}</span>
+            <span v-if="iAmSpy" class="w-mine">你的</span>
+          </div>
+          <div class="w-reveal civilian">
+            <span class="w-label">平民词</span>
+            <span class="w-value">{{ store.reveal.word_civilian }}</span>
+            <span v-if="!iAmSpy" class="w-mine">你的</span>
           </div>
         </div>
 
@@ -208,23 +214,70 @@ const otherWordLabel = computed(() => (iAmSpy.value ? '平民词' : '卧底词')
   color: var(--civilian);
 }
 
-.word-chip {
-  font-size: 12.5px;
+/* 词语揭晓：本局两个词并列公开 */
+.words-reveal {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.w-reveal {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid;
+  padding: 10px 14px;
+}
+
+.w-reveal.spy {
+  background: rgba(217, 95, 95, 0.1);
+  border-color: rgba(217, 95, 95, 0.45);
+}
+
+.w-reveal.civilian {
+  background: rgba(108, 191, 158, 0.1);
+  border-color: rgba(108, 191, 158, 0.45);
+}
+
+.w-label {
+  flex: none;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--text-faint);
+}
+
+.w-reveal.spy .w-label {
+  color: var(--spy);
+}
+
+.w-reveal.civilian .w-label {
+  color: var(--civilian);
+}
+
+.w-value {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 4px;
+}
+
+.w-reveal.spy .w-value {
+  color: var(--spy);
+}
+
+.w-reveal.civilian .w-value {
+  color: var(--civilian);
+}
+
+.w-mine {
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  color: #14351c;
+  background: var(--you);
   border-radius: 999px;
-  padding: 3px 12px;
-  white-space: nowrap;
-}
-
-.word-chip.mine {
-  color: var(--you);
-  background: rgba(108, 199, 125, 0.12);
-  border: 1px solid rgba(108, 199, 125, 0.35);
-}
-
-.word-chip.other {
-  color: var(--accent-soft);
-  background: rgba(232, 168, 82, 0.1);
-  border: 1px solid rgba(232, 168, 82, 0.3);
+  padding: 1px 8px;
 }
 
 .btn {

@@ -25,10 +25,16 @@ const showWordPlate = computed(
   <div class="game-view">
     <RoundTable class="table-area" />
 
-    <!-- 我的词：圆桌整体正下方、输入栏上方，居中大词牌 -->
-    <div v-if="showWordPlate" class="word-plate">
-      <span class="wp-label">你的词</span>
-      <span class="wp-word">{{ store.myWord }}</span>
+    <!-- 我的词：圆桌整体正下方、输入栏上方，居中大词牌；赛后交流阶段附上卧底词 -->
+    <div v-if="showWordPlate" class="word-plates">
+      <div class="word-plate">
+        <span class="wp-label">你的词</span>
+        <span class="wp-word">{{ store.myWord }}</span>
+      </div>
+      <div v-if="store.phase === 'exchange' && store.reveal" class="word-plate spy">
+        <span class="wp-label">卧底词</span>
+        <span class="wp-word">{{ store.reveal.word_spy }}</span>
+      </div>
     </div>
 
     <InputBar />
@@ -88,10 +94,18 @@ const showWordPlate = computed(
   min-width: 0;
 }
 
-/* 我的词大词牌：圆桌下方、输入栏上方，居中 */
-.word-plate {
+/* 词牌区：圆桌下方、输入栏上方，居中（赛后交流追加卧底词一排） */
+.word-plates {
   flex: none;
-  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  pointer-events: none;
+}
+
+.word-plate {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -99,9 +113,14 @@ const showWordPlate = computed(
   border: 1.5px solid rgba(108, 199, 125, 0.45);
   border-radius: 999px;
   padding: 8px 26px;
-  margin-bottom: 8px;
   box-shadow: var(--shadow-md);
-  pointer-events: none;
+}
+
+/* 赛后交流的卧底词牌（略小、红调） */
+.word-plate.spy {
+  background: rgba(217, 95, 95, 0.12);
+  border-color: rgba(217, 95, 95, 0.5);
+  padding: 5px 20px;
 }
 
 .wp-label {
@@ -110,12 +129,22 @@ const showWordPlate = computed(
   letter-spacing: 2px;
 }
 
+.word-plate.spy .wp-label {
+  color: var(--spy);
+}
+
 .wp-word {
   font-size: 26px;
   font-weight: 800;
   letter-spacing: 4px;
   color: var(--accent-soft);
   text-shadow: 0 2px 12px rgba(232, 168, 82, 0.3);
+}
+
+.word-plate.spy .wp-word {
+  font-size: 20px;
+  color: var(--spy);
+  text-shadow: none;
 }
 
 .overlay-banner {
