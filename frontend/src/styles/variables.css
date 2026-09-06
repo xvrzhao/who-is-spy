@@ -1,0 +1,51 @@
+/* 设计基调：暗色桌游房 + 暖木色桌面，轻量游戏化（圆角、柔和阴影、微动效） */
+:root {
+  /* 底色 */
+  --bg: #1c1917;
+  --bg-soft: #292524;
+  --panel: #33302e;
+  --panel-soft: #3d3936;
+  --border: #4a4540;
+  --border-soft: #403b37;
+
+  /* 文字 */
+  --text: #f5f0e8;
+  --text-dim: #b8b0a4;
+  --text-faint: #8a8177;
+
+  /* 强调色 */
+  --accent: #e8a852;        /* 暖金：轮次、按钮、高亮 */
+  --accent-soft: #f2c98a;
+  --you: #6cc77d;           /* 「你」徽章、自己的发言 */
+  --danger: #e06c5a;        /* 卧底、淘汰、错误 */
+  --info: #6aa9d9;          /* 系统、提示 */
+
+  /* 身份色 */
+  --civilian: #6cbf9e;
+  --spy: #d95f5f;
+
+  /* 桌面 */
+  --table-felt: #2f5e46;
+  --table-felt-deep: #274f3b;
+  --table-rim: #6b4a2e;
+  --table-rim-light: #8a6238;
+
+  /* 尺寸 */
+  --seat-size: 68px;
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+
+  /* 阴影 */
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+
+  /* 动效 */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (max-width: 640px) {
+  :root {
+    --seat-size: 52px;
+  }
+}

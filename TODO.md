@@ -6,6 +6,6 @@
 - [x] 事件通过 stream 向外传递，在外层打印
 - [ ] 工程化，外层整合 FastAPI HTTP Server
 - [ ] 加入 minimax 模型语音转换
-- [ ] 前端开发
+- [x] 前端开发（frontend/，Vue3+Vite+TS，详见 frontend/README.md）
 - [ ] Agent 玩家加入随机角色性格，不同语言风格（通过注入提示词）
 - [ ] checkpointer 替换成 postgres
