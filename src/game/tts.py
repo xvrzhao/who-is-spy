@@ -22,7 +22,7 @@ VOICE_IDS = [
     "moss_audio_51903231-a9f5-11f1-b884-ea49bc6b9b04", # Echo
     "moss_audio_6ebc4801-a9c3-11f1-b918-4e871ed0d69e", # Xavier
     "Chinese (Mandarin)_Southern_Young_Man", # 顾凯
-    "Chinese_crisp_podcaster_nv1", # Peng。
+    "moss_audio_ad5baf92-735f-11f0-8263-fe5a2fe98ec8", # Peng。
 ]
 
 # 限流/临时性业务码可重试；1004 鉴权失败等不可重试
