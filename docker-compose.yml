@@ -1,12 +1,16 @@
+# 云端整套部署：docker compose up -d --build
+# 本地开发（uvicorn + vite 直跑）：docker compose up -d postgres redis
 services:
   postgres:
     image: postgres:17
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${PG_DB:-who_is_spy}
       POSTGRES_USER: ${PG_USER:-postgres}
       POSTGRES_PASSWORD: ${PG_PSW:-postgres}
     ports:
-      - "${PG_PORT:-5432}:5432"
+      # 只绑回环地址：SSH 隧道可连来调试，不暴露公网
+      - "127.0.0.1:${PG_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -17,28 +21,44 @@ services:
 
   redis:
     image: redis:7
+    restart: unless-stopped
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
 
-  # 本地 uvicorn 调试时保持注释；需要容器化部署时打开
+  # 后端 API（仅内部网络，由 web 反代，不直接对外）
   app:
     build: .
+    restart: unless-stopped
     env_file: .env
     environment:
       PG_HOST: postgres
       REDIS_HOST: redis
-    ports:
-      - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      # 无独立 /health 路由，用 TCP 探活
+      test: ["CMD-SHELL", "python -c \"import socket; socket.create_connection(('127.0.0.1', 8000), timeout=3).close()\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # 前端：nginx 托管静态资源 + 反代 /api → app（同源，绕开 CORS）
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-80}:80"
+    depends_on:
+      - app
 
 volumes:
   pgdata:

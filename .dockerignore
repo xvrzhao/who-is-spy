@@ -1,0 +1,21 @@
+# 密钥不进镜像（compose 的 env_file 在运行时注入）
+.env
+.env.*
+!.env.example
+
+.git
+.gitignore
+.venv
+.claude
+__pycache__
+*.pyc
+.pytest_cache
+
+# 前端有独立的构建上下文（frontend/Dockerfile）
+frontend
+
+docker-compose.yml
+Dockerfile
+.dockerignore
+nohup.out
+*.log
