@@ -26,19 +26,19 @@ services:
       retries: 10
 
   # 本地 uvicorn 调试时保持注释；需要容器化部署时打开
-  # app:
-  #   build: .
-  #   env_file: .env
-  #   environment:
-  #     PG_HOST: postgres
-  #     REDIS_HOST: redis
-  #   ports:
-  #     - "8000:8000"
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
+  app:
+    build: .
+    env_file: .env
+    environment:
+      PG_HOST: postgres
+      REDIS_HOST: redis
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   pgdata:
