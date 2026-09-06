@@ -17,12 +17,12 @@ SAMPLE_RATE = 16000
 
 # 中文系统音色表（按玩家 ID 取模固定分配，保证同一玩家音色不变）
 VOICE_IDS = [
-    "Chinese (Mandarin)_Southern_Young_Man", # 1-顾凯
-    "moss_audio_9c223de9-7ce1-11f0-9b9f-463feaa3106a", # 2-万茂源
-    "moss_audio_6ebc4801-a9c3-11f1-b918-4e871ed0d69e", # 3-Xavier
-    "moss_audio_3dee3d0c-7ce6-11f0-8ff8-2a857e2646d2", # 4-良木
-    "Chinese_crisp_podcaster_nv1", # 5-Tina
-    "Chinese (Mandarin)_Warm_Bestie", # 6-Peng。
+    "moss_audio_3dee3d0c-7ce6-11f0-8ff8-2a857e2646d2", # 良木
+    "moss_audio_9c223de9-7ce1-11f0-9b9f-463feaa3106a", # 万茂源
+    "moss_audio_51903231-a9f5-11f1-b884-ea49bc6b9b04", # Echo
+    "moss_audio_6ebc4801-a9c3-11f1-b918-4e871ed0d69e", # Xavier
+    "Chinese (Mandarin)_Southern_Young_Man", # 顾凯
+    "Chinese_crisp_podcaster_nv1", # Peng。
 ]
 
 # 限流/临时性业务码可重试；1004 鉴权失败等不可重试
