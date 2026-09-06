@@ -4,7 +4,7 @@ WORKDIR /app
 
 # 先装依赖（利用层缓存：package*.json 不变则跳过重装）
 COPY package.json package-lock.json ./
-RUN npm ci --no-audit --no-fund
+RUN npm config set registry https://registry.npmmirror.com && npm ci --no-audit --no-fund
 
 COPY . .
 # npm run build = vue-tsc 类型检查 + vite build
