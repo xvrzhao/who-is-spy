@@ -8,6 +8,7 @@ from src.game.state import PlayerIdentity
 
 class Event(BaseModel):
     """custom stream 事件基类"""
+    pass
 
 
 class GameInitStart(Event):

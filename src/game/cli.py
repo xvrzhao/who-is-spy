@@ -59,9 +59,10 @@ async def main():
                 print("Event:", event)
 
         state = await graph.aget_state(config)
-        if len(state.interrupts) < 1:
+        if len(state.interrupts) < 1: # 没有中断，说明整个图运行结束
             break
 
+        # 有中断，resume 继续执行图
         interrupt_info = state.interrupts[0].value
         if interrupt_info["interrupt"] == "speech_playback_done":
             game_input = Command(resume=True) # afplay 已阻塞至播放完成，直接确认

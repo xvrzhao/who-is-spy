@@ -32,6 +32,8 @@ def build_graph(checkpointer):
     return (
         StateGraph(State)
 
+        # ----------------------- add nodes -----------------------
+
         # 游戏初始化节点
         .add_node(game_init_node)
         # 发言阶段节点
@@ -50,6 +52,8 @@ def build_graph(checkpointer):
         .add_node(exchange_session_player_node)
         .add_node(exchange_speech_gate_node)
         .add_node(exchange_session_end_node)
+
+        # ----------------------- add edges -----------------------
 
         .set_entry_point("game_init_node")
         .add_edge("game_init_node", "statement_start_node")
@@ -90,6 +94,8 @@ def build_graph(checkpointer):
             }
         )
         .add_edge("exchange_session_end_node", END)
+
+        # ----------------------- compile -----------------------
 
         .compile(checkpointer=checkpointer)
     )
