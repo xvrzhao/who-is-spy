@@ -1,4 +1,6 @@
-# 云端整套部署：docker compose up -d --build
+# 云端整套部署：docker compose --env-file backend/.env up -d --build
+#   --env-file backend/.env：配置随 .env 迁入 backend/，插值变量（PG_* / WEB_PORT）从那里读取；
+#   app 容器的运行时环境则由下方 env_file 注入（environment 覆盖 PG_HOST 指向容器网络）
 # 本地开发（uvicorn + vite 直跑）：docker compose up -d postgres
 services:
   postgres:
@@ -21,12 +23,11 @@ services:
 
   # 后端 API（仅内部网络，由 web 反代，不直接对外）
   app:
-    build: .
+    build: ./backend
     restart: unless-stopped
-    env_file: .env
+    env_file: backend/.env
     environment:
       PG_HOST: postgres
-      REDIS_HOST: redis
     depends_on:
       postgres:
         condition: service_healthy

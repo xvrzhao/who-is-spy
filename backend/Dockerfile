@@ -22,5 +22,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 EXPOSE 8000
-# 互斥已下沉 PG（game_threads 表），多 worker 不会同一局双流；暂保持单 worker，需要横向扩容时直接加 --workers
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]

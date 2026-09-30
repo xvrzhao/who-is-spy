@@ -11,11 +11,6 @@ __pycache__
 *.pyc
 .pytest_cache
 
-# 前端有独立的构建上下文（frontend/Dockerfile）
-frontend
-
-docker-compose.yml
-Dockerfile
-.dockerignore
-nohup.out
+logs
 *.log
+nohup.out
