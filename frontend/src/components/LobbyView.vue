@@ -19,17 +19,6 @@ function start(): void {
       <h1>谁是卧底</h1>
       <p class="tagline">你和一桌 AI 玩「谁是卧底」——描述你的词，找出那个词不一样的人</p>
 
-      <div v-if="store.restorable" class="restore-card">
-        <div class="restore-info">
-          有一局未完成的对局
-          <span class="restore-meta">{{ store.restorable.playerTotal }} 人 · 第 {{ store.restorable.gameRound }} 轮</span>
-        </div>
-        <div class="restore-btns">
-          <button class="btn btn-primary" @click="store.resumeRestorable()">继续对局</button>
-          <button class="link-btn" @click="store.discardRestorable()">放弃，开新局</button>
-        </div>
-      </div>
-
       <div class="field">
         <label>本局人数（含你，其余为 AI 玩家）</label>
         <div class="picker">
@@ -87,47 +76,6 @@ h1 {
   color: var(--text-dim);
   font-size: 14px;
   margin-bottom: 28px;
-}
-
-.restore-card {
-  background: rgba(106, 169, 217, 0.1);
-  border: 1px solid rgba(106, 169, 217, 0.3);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
-  margin-bottom: 24px;
-  text-align: left;
-}
-
-.restore-info {
-  font-size: 13.5px;
-  color: var(--text);
-  margin-bottom: 10px;
-}
-
-.restore-meta {
-  color: var(--info);
-  margin-left: 6px;
-}
-
-.restore-btns {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.restore-btns .btn {
-  padding: 7px 16px;
-  font-size: 13px;
-}
-
-.link-btn {
-  font-size: 12px;
-  color: var(--text-faint);
-  text-decoration: underline;
-}
-
-.link-btn:hover {
-  color: var(--text-dim);
 }
 
 .field {

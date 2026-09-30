@@ -23,7 +23,6 @@ export const sseFetch: Transport = async function* (url, body, signal) {
   const resp = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-    // resume 省略时也必须发 {}（FastAPI resume 字段缺省 = None，与省略语义等价）
     body: JSON.stringify(body ?? {}),
     signal,
   })
@@ -44,8 +43,9 @@ export const sseFetch: Transport = async function* (url, body, signal) {
 }
 
 /**
- * 分帧解析器：按 \n\n 切帧，解析 data: 行（event 类型内嵌在 data JSON 的 event 字段）。
- * 与后端 sse_event（src/utils/sse.py：单 data 行 + JSON）精确兼容，并容忍标准 SSE 变体。
+ * 分帧解析器：按 \n\n 切帧，event 名取 event: 行，payload 取 data: 行 JSON。
+ * 与后端 sse_event（backend/src/utils/sse.py：event 行 + 单 data 行，data 即 payload）精确兼容，
+ * 并容忍标准 SSE 变体（注释行、多 data 行）。
  */
 export function createFrameParser(onFrame: (frame: SseFrame) => void) {
   let buf = ''
@@ -57,14 +57,16 @@ export function createFrameParser(onFrame: (frame: SseFrame) => void) {
       const raw = buf.slice(0, idx)
       buf = buf.slice(idx + 2)
 
+      let eventName = ''
       const dataLines: string[] = []
       for (const line of raw.split('\n')) {
         if (line.startsWith(':')) continue // 注释/心跳行
-        if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart())
+        if (line.startsWith('event:')) eventName = line.slice(6).trim()
+        else if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart())
       }
-      if (dataLines.length === 0) continue
+      if (!eventName || dataLines.length === 0) continue
       try {
-        onFrame(JSON.parse(dataLines.join('\n')) as SseFrame)
+        onFrame({ event: eventName as SseFrame['event'], payload: JSON.parse(dataLines.join('\n')) })
       } catch {
         // 非 JSON data 行直接丢弃（保持与 EventSource 容错语义一致）
       }

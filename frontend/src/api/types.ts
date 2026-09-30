@@ -1,6 +1,6 @@
 // 与后端契约一一对应：
-//   事件 payload ↔ src/game/events.py（pydantic model_dump(mode="json")）
-//   status 响应 ↔ src/domains/game/endpoints.py 白名单字段
+//   事件 payload ↔ backend/src/core/game/events.py（pydantic model_dump(mode="json")）
+//   SSE 帧格式 ↔ backend/src/utils/sse.py（event 行 + 单 data 行，data 即 payload）
 
 export type PlayerId = number
 export type Identity = 'civilian' | 'spy'
@@ -97,7 +97,7 @@ export interface PPlayerSpeech {
 }
 
 export interface PInterrupt {
-  interrupt: InterruptType
+  type: InterruptType
 }
 
 export interface PError {
@@ -105,25 +105,7 @@ export interface PError {
   message: string
 }
 
-// —— status 端点 ——
-
-export type RunStatus = 'running' | 'waiting_input' | 'continuable' | 'finished'
-
-export interface StatusResponse {
-  game_id: string
-  status: RunStatus
-  interrupt: PInterrupt | null
-  state: {
-    player_total: number
-    real_player_id: PlayerId
-    game_round: number
-    stage: 'statement' | 'voting' // 注意：交流阶段后端不改 stage，此字段在交流期不可信
-    present_players: PlayerId[]
-    winner: Identity | null
-  } | null
-}
-
-// —— 时间线消息（渲染与断线去重的统一载体，key 全局唯一） ——
+// —— 时间线消息（渲染的统一载体，key 全局唯一） ——
 
 export type TimelineMsg =
   | { key: string; kind: 'statement'; round: number; playerId: PlayerId; text: string; mine: boolean }

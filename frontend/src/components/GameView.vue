@@ -45,25 +45,14 @@ const showWordPlate = computed(
     <WordReveal />
     <StageToast />
 
-    <!-- 连接状态提示 -->
-    <Transition name="fade">
-      <div v-if="store.connStatus === 'conflict'" class="overlay-banner">
-        ⚠️ 这局游戏正在另一个窗口/标签页运行。关掉那边，或等待它在等待输入时接管。
-      </div>
-      <div v-else-if="store.connStatus === 'reconnecting'" class="overlay-banner warn">
-        连接中断，正在重连…
-      </div>
-    </Transition>
-
-    <!-- 后端错误覆盖层 -->
+    <!-- 连接中断/后端错误覆盖层：后端不支持断点恢复，本局作废 -->
     <Transition name="fade">
       <div v-if="store.lastError" class="overlay-mask">
         <div class="overlay-card">
-          <h3>出错了 😵</h3>
-          <p class="err">{{ store.lastError.type }}: {{ store.lastError.message }}</p>
+          <h3>对局中断 😵</h3>
+          <p class="err">{{ store.lastError.message }}</p>
           <div class="btns">
-            <button class="btn btn-primary" @click="store.retryAfterError()">从断点继续</button>
-            <button class="btn btn-ghost" @click="store.leaveGame()">离开对局</button>
+            <button class="btn btn-primary" @click="store.leaveGame()">返回大厅</button>
           </div>
         </div>
       </div>
@@ -145,30 +134,6 @@ const showWordPlate = computed(
   font-size: 20px;
   color: var(--spy);
   text-shadow: none;
-}
-
-.overlay-banner {
-  position: absolute;
-  top: 52px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 50;
-  background: rgba(106, 169, 217, 0.15);
-  border: 1px solid rgba(106, 169, 217, 0.35);
-  color: var(--info);
-  font-size: 13px;
-  border-radius: 999px;
-  padding: 6px 18px;
-  white-space: nowrap;
-  max-width: calc(100% - 24px);
-  text-overflow: ellipsis;
-  overflow: hidden;
-}
-
-.overlay-banner.warn {
-  background: rgba(232, 168, 82, 0.15);
-  border-color: rgba(232, 168, 82, 0.4);
-  color: var(--accent-soft);
 }
 
 .overlay-mask {

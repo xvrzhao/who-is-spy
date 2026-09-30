@@ -52,13 +52,12 @@ const stageText = computed(() => {
 
 const aiThinking = computed(() => {
   if (store.pendingInterrupt) return false
-  if (store.connStatus === 'reconnecting' || store.connStatus === 'conflict') return false
   if (store.audioPlayingId !== null) return false // 正在播语音＝在发言，不是在思考
   return now.value - store.lastFrameAt > 8000 && store.phase !== 'finished'
 })
 
 function quit(): void {
-  if (store.phase === 'finished' || confirm('确定离开吗？当前对局会保留，回来可继续。')) {
+  if (store.phase === 'finished' || confirm('确定离开吗？离开后本局无法继续。')) {
     store.leaveGame()
   }
 }
