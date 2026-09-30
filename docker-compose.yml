@@ -1,5 +1,5 @@
 # 云端整套部署：docker compose up -d --build
-# 本地开发（uvicorn + vite 直跑）：docker compose up -d postgres redis
+# 本地开发（uvicorn + vite 直跑）：docker compose up -d postgres
 services:
   postgres:
     image: postgres:17
@@ -19,17 +19,6 @@ services:
       timeout: 3s
       retries: 10
 
-  redis:
-    image: redis:7
-    restart: unless-stopped
-    ports:
-      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-
   # 后端 API（仅内部网络，由 web 反代，不直接对外）
   app:
     build: .
@@ -40,8 +29,6 @@ services:
       REDIS_HOST: redis
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     healthcheck:
       # 无独立 /health 路由，用 TCP 探活
