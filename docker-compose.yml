@@ -11,7 +11,6 @@ services:
       POSTGRES_USER: ${PG_USER:-postgres}
       POSTGRES_PASSWORD: ${PG_PSW:-postgres}
     ports:
-      # 只绑回环地址：SSH 隧道可连来调试，不暴露公网
       - "127.0.0.1:${PG_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data

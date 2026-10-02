@@ -9,11 +9,20 @@
 - 每个 Agent 发言前都会有私密推理（我是卧底吗、谁可疑），卧底会主动伪装，Agent 的发言也会站队、拉拢、排挤等，真实感很强。
 - 精彩的是游戏结束后，大家会有交流复盘环节，你和 Agent 之间一起对话，说说谁是“奥斯卡”、谁很冤、评评理、夸夸人，话题是开放的。
 
+## 技术栈
+
+本项目后端纯手写，前端 Vibe Coding 生成。
+
+- 前端：Vue 3 / Vite / TypeScript / Pinia
+- 后端：Python 3.14 / FastAPI / LangGraph / GLM LLM / MiniMax TTS
+- 存储：Postgres（Langgraph Checkpointer）
+- 部署：Docker Compose
+
 ## 架构
 
 项目采用前后端架构，前后端之间采用传统 HTTP 通信，前端请求推动后端 Langgraph 节点执行，后端通过 SSE 返回游戏进度事件。
 
-游戏核心逻辑，也就是 Langgraph 图，在 `backend/src/core/game/` 中。后端纯手写，前端 Vibe Coding 生成。
+游戏核心逻辑，也就是 Langgraph 图，在 `backend/src/core/game/` 中。
 
 ```mermaid
 flowchart LR
@@ -22,52 +31,48 @@ flowchart LR
     fe -- "POST /api/games<br/>（开局）" --> be
     fe -- "POST /api/games/{thread_id}/resume<br/>（应答 interrupt）" --> be
     be -- "SSE 事件流" --> fe
-    be --> llm["智谱 GLM<br/>推理 · 发言 · 投票"]
+    be --> llm["LLM<br/>推理 · 发言 · 投票"]
     be --> tts["MiniMax TTS"]
-    be --> pg[("Postgres<br/>checkpoint")]
+    be --> pg[("Postgres<br/>Checkpointer")]
 ```
 
-后端把整局游戏编排成一张 LangGraph 状态图：AI 节点调 LLM/TTS 产出发言，轮到真人时图在 `interrupt` 处挂起，前端提交输入后 `resume` 续跑，每一步状态都 checkpoint 进 Postgres。前端是纯展示/交互层，解析 SSE 事件流驱动 UI、管理语音播放队列、收集真人的发言和投票。
+后端 LangGraph 图中，发言、投票、赛后交流节点调用 LLM/TTS 进行相应动作，轮到真人时，图中断执行，前端提交输入后 `resume` 继续执行，节点执行状态通过 Postgres Checkpointer 持久化。
 
-真人和后端的交互只有两个接口：开局、应答 interrupt。每应答一次，后端返回一段新的 SSE 流。
+前端是纯展示/交互层，解析 SSE 事件流驱动 UI、管理语音播放队列、收集真人的发言和投票。
 
-部署到云端就是三个容器：
+前后端交互包含两个接口：开局、应答 interrupt。每应答一次，后端返回一段新的 SSE 流。
+
+## 部署
+
+Docker Compose 一键部署，包含三个容器：
 
 ```mermaid
 flowchart LR
-    b["浏览器"] --> web["web（nginx）<br/>静态资源 + 反代 /api · 对外 WEB_PORT"] --> app["app（FastAPI）<br/>仅容器内网"] --> db[("postgres<br/>仅绑 127.0.0.1")]
+    b["浏览器"] --> web["Nginx<br/>前端静态资源 + 后端反代"] --> app["FastAPI"] --> db[("Postgres")]
 ```
-
-## 技术栈
-
-- 前端：Vue 3 / Vite / TypeScript / Pinia
-- 后端：Python 3.14 / FastAPI / LangGraph，LLM 走智谱 GLM（OpenAI 兼容协议），TTS 用 MiniMax
-- 存储：Postgres（langgraph checkpoint）
-- 部署：Docker Compose
 
 ## 本地开发
 
-依赖：Python 3.14+、Node 20+、Docker。
-
 ```bash
-# 1. 配置
+# 1. 环境变量
 cp backend/.env.example backend/.env
-#    填 LLM_API_KEY（智谱，必填）、MINIMAX_API_KEY（可选，不填就没有语音）
 
-# 2. 起 Postgres
+# 2. 启动 Postgres
 docker compose up -d postgres
 
-# 3. 起后端（:8000）
+# 3. 启动后端
 cd backend
-python3.14 -m venv .venv && .venv/bin/pip install -r requirements.txt
-.venv/bin/python -m uvicorn src.main:app --port 8000
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn src.main:app --port 8000
 
-# 4. 起前端（:5173，/api 由 vite proxy 转到 8000）
+# 4. 启动前端
 cd frontend
-npm install && npm run dev
+npm install
+npm run dev
 ```
 
-打开 http://localhost:5173 开局。懒得配后端的话，mock 模式可以直接玩：`cd frontend && VITE_USE_MOCK=1 npm run dev`。
+前端启动地址：http://localhost:5173
 
 ## 云端部署
 
