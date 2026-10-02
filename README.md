@@ -19,8 +19,8 @@
 flowchart LR
     fe["前端 · Vue<br/>游戏 UI"]
     be["后端 · FastAPI + LangGraph<br/>游戏状态图"]
-    fe -- "POST /api/games<br>（开局）" --> be
-    fe -- "POST /api/games/{thread_id}/resume<br>（应答 interrupt）" --> be
+    fe -- "POST /api/games<br/>（开局）" --> be
+    fe -- "POST /api/games/{thread_id}/resume<br/>（应答 interrupt）" --> be
     be -- "SSE 事件流" --> fe
     be --> llm["智谱 GLM<br/>推理 · 发言 · 投票"]
     be --> tts["MiniMax TTS"]
