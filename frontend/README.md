@@ -1,6 +1,6 @@
 # 游戏前端
 
-> 声明：前端代码完全由 Coding Agent 生成，未经作者 Review，此文档亦是，故前端代码作者不做解释。
+> 声明：前端代码完全由 Coding Agent 生成，未经作者 Review，此文档亦是，故前端代码作者不做任何解释。
 
 「谁是卧底」AI 对战游戏前端：Vue 3 + Vite + TypeScript + Pinia，拟真圆桌 + 聊天时间线，Agent 语音自动连播（speech gate 同步）。
 
