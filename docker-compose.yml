@@ -1,7 +1,3 @@
-# 云端整套部署：docker compose --env-file backend/.env up -d --build
-#   --env-file backend/.env：配置随 .env 迁入 backend/，插值变量（PG_* / WEB_PORT）从那里读取；
-#   app 容器的运行时环境则由下方 env_file 注入（environment 覆盖 PG_HOST 指向容器网络）
-# 本地开发（uvicorn + vite 直跑）：docker compose up -d postgres
 services:
   postgres:
     image: postgres:17
@@ -15,30 +11,27 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-postgres} -d ${PG_DB:-who_is_spy}"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-postgres} -d ${PG_DB:-who_is_spy}"] # 退出码 0 为成功，其他为失败
+      interval: 5s # 检测间隔
+      timeout: 3s # 每次检测超过 3s 没有响应判定为失败
+      retries: 6 # 连续失败 6 次判定为 unhealthy
 
-  # 后端 API（仅内部网络，由 web 反代，不直接对外）
   app:
     build: ./backend
     restart: unless-stopped
     env_file: backend/.env
     environment:
-      PG_HOST: postgres
+      PG_HOST: postgres # 覆盖 PG_HOST 指向容器网络
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      # 无独立 /health 路由，用 TCP 探活
       test: ["CMD-SHELL", "python -c \"import socket; socket.create_connection(('127.0.0.1', 8000), timeout=3).close()\""]
-      interval: 15s
-      timeout: 5s
-      retries: 5
+      interval: 5s
+      timeout: 3s
+      retries: 6
       start_period: 20s
 
-  # 前端：nginx 托管静态资源 + 反代 /api → app（同源，绕开 CORS）
   web:
     build: ./frontend
     restart: unless-stopped
