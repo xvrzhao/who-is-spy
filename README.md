@@ -2,18 +2,10 @@
 
 和一桌 Agent 玩 “谁是卧底” ！
 
-<table>
-  <tr>
-    <td><img src="images/开局.jpg" width="371" alt="开局"></td>
-    <td><img src="images/分配词语.jpg" width="371" alt="分配词语"></td>
-    <td><img src="images/发言中.jpg" width="371" alt="发言中"></td>
-  </tr>
-  <tr>
-    <td><img src="images/投票中.jpg" width="371" alt="投票中"></td>
-    <td><img src="images/淘汰出局.jpg" width="371" alt="淘汰出局"></td>
-    <td><img src="images/赛后交流.jpg" width="371" alt="赛后交流"></td>
-  </tr>
-</table>
+<p>
+  <img src="images/开局.jpg" width="223" alt="开局"> <img src="images/分配词语.jpg" width="223" alt="分配词语"> <img src="images/发言中.jpg" width="223" alt="发言中"><br>
+  <img src="images/投票中.jpg" width="223" alt="投票中"> <img src="images/淘汰出局.jpg" width="223" alt="淘汰出局"> <img src="images/赛后交流.jpg" width="223" alt="赛后交流">
+</p>
 
 ## 特色功能
 
