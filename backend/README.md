@@ -99,64 +99,54 @@ flowchart TD
 | `need_exchange` | 赛后交流轮到真人 | 发言内容，并指定下一位发言玩家 |
 | `speech_playback_done` | 等待语音播放确认 | `true` |
 
-## SSE 事件一览
+## 游戏流程事件 / SSE 事件
 
-帧格式是 `event: <事件名>` 加 `data: <payload JSON>`，payload 没有外层包装。事件模型都在 `src/core/game/events.py`。
+SSE 帧格式：
 
-| 事件 | 时机 | 关键字段 |
-|---|---|---|
-| `game_started` | 开局（首帧） | `game_id`, `player_total` |
-| `init_start` / `init_end` | 出题、分配身份完成 | `real_player_id`, `real_player_word` |
-| `statement_start` / `statement_end` | 发言阶段开始 / 结束 | `game_round` |
-| `statement_player_start` / `statement_player_end` | Agent 发言开始 / 结束 | `player_id`, `statement` |
-| `vote_start` / `vote_end` | 投票阶段开始 / 结束 | `vote_collect`（被投人 → 投票人）, `abstain_voters`, `eliminated_player(_identity)`, `present_players` |
-| `vote_player_start` / `vote_player_end` | 单个 Agent 投票开始 / 结束 | `player_id` |
-| `game_over` | 胜负揭晓 | `winner`, `real_player_identity`, `is_real_player_win`, `spy_id`, `word_civilian`, `word_spy` |
-| `exchange_session_start` / `exchange_session_end` | 赛后交流开始 / 结束 | — |
-| `exchange_session_player_start` / `exchange_session_player_end` | 交流发言开始 / 结束 | `player_id`, `content`, `next_player_id` |
-| `player_speech` | Agent 语音就绪 | `player_id`, `text`, `audio_base64`, `audio_format`, `audio_length_ms` |
-| `interrupt` | 段尾：等待真人输入 | `type`（见上表） |
-| `finished` | 整局结束（段尾） | `{}` |
-| `error` | 运行异常（段尾） | `type`, `message` |
+```
+event: <Event Name>
+data: <Payload JSON>
 
-## API
-
-| 方法 & 路径 | 说明 |
-|---|---|
-| `POST /api/games` | 开局。请求体 `{"player_total": 6}`，返回 SSE 流（`game_started` → … → `interrupt` / `finished`） |
-| `POST /api/games/{game_id}/resume` | 应答 interrupt。请求体 `{"resume": <值>}`，返回下一段 SSE 流 |
-
-SSE 都是 POST（`EventSource` 用不了），响应会带 `X-Accel-Buffering: no` 等头，防止反向代理缓冲。
-
-## 配置（.env）
-
-| 变量 | 说明 | 默认 |
-|---|---|---|
-| `LLM_API_KEY` | 智谱开放平台 Key（GLM，OpenAI 兼容协议） | 必填 |
-| `MINIMAX_API_KEY` | MiniMax TTS Key，留空则语音降级，只发文字事件 | 空 |
-| `MINIMAX_TTS_MODEL` | TTS 模型 | `speech-2.6-hd` |
-| `ENV` | `development` / `production`，生产启用 JSON 日志并落盘 `logs/` | `development` |
-| `APP_NAME` | 应用名 | `who-is-spy` |
-| `ALLOW_ORIGINS` | CORS 白名单（JSON 数组，同源反代部署不用配） | `[]` |
-| `PG_HOST` / `PG_PORT` / `PG_DB` / `PG_USER` / `PG_PSW` | Postgres 连接 | `localhost` / `5432` / `who_is_spy` / `postgres` / `postgres` |
-| `PG_CONN_MAX` | 连接池上限 | `10` |
-| `WEB_PORT` | docker compose 中 web 服务对外端口 | `80` |
-
-## 本地运行
-
-必须先 `cd` 到本目录（`backend/`）再执行，`src` 包和 `.env` 都是相对这个目录解析的。
-
-```bash
-# 服务端模式（需先起 Postgres：仓库根目录 docker compose up -d postgres）
-python3.14 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-.venv/bin/python -m uvicorn src.main:app --port 8000
-
-# CLI 模式：终端里直接玩一局，InMemorySaver，不依赖 Postgres / FastAPI
-# （出题/发言/投票走 LLM，语音用 macOS 自带 afplay 播放）
-.venv/bin/python -m src.core.game.cli
+...
 ```
 
-## 日志与链路追踪
+| 事件 | 时机 |
+|---|---|
+| `game_started` | 开局（首帧） |
+| `init_start` / `init_end` | 出题、分配身份完成 |
+| `statement_start` / `statement_end` | 发言阶段开始 / 结束 |
+| `statement_player_start` / `statement_player_end` | Agent 发言开始 / 结束 |
+| `vote_start` / `vote_end` | 投票阶段开始 / 结束 |
+| `vote_player_start` / `vote_player_end` | 单个 Agent 投票开始 / 结束 |
+| `game_over` | 胜负揭晓 |
+| `exchange_session_start` / `exchange_session_end` | 赛后交流开始 / 结束 |
+| `exchange_session_player_start` / `exchange_session_player_end` | 交流发言开始 / 结束 |
+| `player_speech` | Agent 语音就绪 |
+| `interrupt` | 等待真人输入（作为 SSE 尾帧）|
+| `finished` | 整局结束（作为 SSE 尾帧）|
+| `error` | 运行异常（作为 SSE 尾帧）|
 
-TraceMiddleware 从请求头取 `X-Trace-Id`，取不到就生成新 id，存进 contextvar；TraceFilter 再把它注进每一条日志，并回写响应头。开发环境是彩色控制台输出（带文件路径和行号）；`ENV=production` 时换成 JSON，同时写入 `logs/app.log` 滚动文件（500MB × 10）。
+各事件类型所包含字段见代码：`src/core/game/events.py`。
+
+## CLI 模式运行游戏内核
+
+```bash
+python -m src.core.game.cli
+```
+
+终端输出：
+
+```bash
+Event: type='init_start'
+Event: type='init_end' real_player_id=4 real_player_word='候车室'
+Event: type='statement_start' game_round=1
+Event: type='statement_player_start' player_id=1
+Event: type='statement_player_end' player_id=1 statement='我来说说我的词吧。这是一个公共场所，去的人基本上都需要等待，里面有座位可以坐，通常会听到广播提醒。大家先说说看，看看我们是不是一路的。'
+Event: player_speech 玩家1 语音(14364ms)：我来说说我的词吧。这是一个公共场所，去的人基本上都需要等待，里面有座位可以坐，通常会听到广播提醒。大家先说说看，看看我们是不是一路的。
+Event: type='statement_player_start' player_id=2
+Event: type='statement_player_end' player_id=2 statement='我拿到的词确实和1号说的很像，也是一个公共场合，大家去那里通常不是目的，而是中间的一个环节，需要在那里等着，有座椅可以休息，也经常能听到广播通知。我觉得1号说的和我理解的差不多，应该是一路的。其他人也说说看吧。'
+Event: player_speech 玩家2 语音(18684ms)：我拿到的词确实和1号说的很像，也是一个公共场合，大家去那里通常不是目的，而是中间的一个环节，需要在那里等着，有座椅可以休息，也经常能听到广播通知。我觉得1号说的和我理解的差不多，应该是一路的。其他人也说说看吧。
+Event: type='statement_player_start' player_id=3
+
+...
+```
