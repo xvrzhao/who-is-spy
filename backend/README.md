@@ -1,8 +1,8 @@
 # 游戏后端
 
-游戏状态机由 Langgraph 驱动，外层通过 FastAPI、日志、环境变量、链路跟踪等进行工程化。所有代码均为异步，运行在 asyncio 事件循环中。
+游戏状态机由 Langgraph 驱动，外层通过 FastAPI、日志、环境变量、链路跟踪等模块进行工程化。所有代码均为异步，运行在 asyncio 事件循环中。
 
-LangGraph 状态图代表一整局游戏的流程。AI 玩家由 LLM 驱动，真人玩家通过 **interrupt / resume** 人工介入（Human-in-the-loop）进行发言投票，过程中的事件以 SSE 流推给前端，图的状态由 Postgres Checkpointer 进行持久化。
+LangGraph 状态图代表一整局游戏。AI 玩家由 LLM 驱动，真人玩家通过人工介入（`Human-in-the-loop: interrupt / resume`）进行发言投票，过程中的事件以 SSE 流推给前端，图的状态由 Postgres Checkpointer 进行持久化。
 
 ## 目录结构
 
@@ -46,81 +46,58 @@ backend/
 
 ## 整体架构
 
-`domains/` 只负责 HTTP 协议，也就是路由、请求校验和 SSE 响应头。`core/` 是基础设施和游戏内核，其中游戏内核在 `core/game/` 下，对服务器基础设施零依赖：服务器侧的配置由 `core/config.py` 读取，游戏侧的 Key 由 `core/game/` 自己 `load_dotenv()` 读取，两边互不依赖，所以它可以脱离 FastAPI 和 Postgres 单独跑（CLI 模式就是这么做的）。
+`domains/` 负责 HTTP 协议：路由、请求校验和 SSE 响应；`core/` 包含基础设施和游戏内核（`core/game/`）。服务器侧配置由 `core/config.py` 读取，游戏侧配置由 `load_dotenv()` 读取，游戏内核可以脱离 FastAPI 和 Postgres 单独跑（CLI 模式）。
 
-游戏的核心思路是 **LangGraph 状态机 + human-in-the-loop**，一次请求的生命周期大致是这样：
+游戏核心思路为 **LangGraph 状态机 + Human-in-the-loop**，用户请求生命周期如下：
 
 ```mermaid
 sequenceDiagram
     participant F as 前端
-    participant E as endpoints
-    participant P as GraphProvider
+    participant E as 后端接口
     participant G as graph 节点
 
     F->>E: POST /api/games
-    E->>P: stream_start
-    P->>G: astream(初始 State)
-    G-->>F: SSE 帧（节点里 emit(Event) 冒泡上来）
-    G->>G: 轮到真人：interrupt() 挂起<br/>此时状态已 checkpoint 进 PG
+    E->>G: astream(初始 State)
+    G-->>F: SSE 帧（游戏状态事件）
+    G->>G: 轮到真人：interrupt() 挂起<br/>状态 checkpoint 进 PG
     G-->>F: event: interrupt（段尾帧），本段流结束
-    F->>E: POST /api/games/{id}/resume {"resume": 值}
-    E->>E: RESUME_VALIDATORS 校验，不符直接 422
-    E->>P: stream_resume
-    P->>G: astream(Command(resume=...))
-    G-->>F: 从挂起点续跑，直到下一次挂起或 END
-    G-->>F: event: finished（正常走完）或 error（异常）
+    F->>E: POST /api/games/{thread_id}/resume
+    E->>E: 校验用户 resume 值是否对应 interrupt 类型
+    E->>G: astream(Command(resume=...))
+    G-->>F: 从挂起点继续执行，直到下次 interrupt 或 END
 ```
-
-实现上有几个点值得说明：
-
-- `game_id` 就是 langgraph 的 `thread_id`。开局时由 endpoints 生成 uuid，checkpointer 按它隔离每一局的状态。
-- 节点里只调 `emit(Event)`，由 GraphProvider 统一把 custom stream 转成 SSE 帧（`src/utils/sse.py`）。CLI 模式消费的是同一批事件。
-- 真人输入没有专门的 HTTP 语义。真人和 Agent 走的是同一个节点，轮到真人就 `interrupt()` 挂起，前端带着值 `resume` 回来，节点拿到返回值接着跑——对图来说，真人只是「一个比较慢的 Agent」。
-- 并发投票用 Send fanout：`voting_player_node` 对每位在场玩家并行分发，`vote_history` 和 `history` 在 State 里是 `Annotated[list, add]` reducer，多路并行写入会自动合并，最后汇合到 `voting_end_node` 计票。
-- resume 时如果没有挂起的 interrupt，会直接返回 500。本项目不支持断点续跑和断线重连，连接断了这一局就作废。
 
 ## 游戏 Graph 流程
 
 ```mermaid
 flowchart TD
-    gi["game_init_node<br/>LLM 出一对近义词 + 随机分配真人/卧底"] --> ss["statement_start_node"]
-    ss --> sp["statement_player_node<br/>真人=interrupt / Agent=LLM+TTS"]
-    sp --> g1{"statement_speech_gate_node<br/>等前端播完语音"}
-    g1 -- "continue（还有人没说）" --> sp
-    g1 -- "end（全员发言完）" --> se["statement_end_node"] --> vs["voting_start_node"]
-    vs -. "Send × N 并行" .-> vp["voting_player_node<br/>真人=interrupt / Agent=LLM"]
-    vp --> ve["voting_end_node<br/>计票 / 淘汰 / 胜负判定"]
-    ve -- "next_round" --> ss
-    ve -- "game_over" --> go["game_over_node<br/>揭晓双方词与胜负"]
-    go --> es["exchange_session_start_node<br/>随机起始发言人"]
-    es --> ep["exchange_session_player_node<br/>真人=interrupt / Agent=LLM+TTS<br/>发言者点名下一位"]
-    ep --> g2{"exchange_speech_gate_node"}
-    g2 -- "continue（< N+1 次）" --> ep
-    g2 -- "end" --> ee["exchange_session_end_node"] --> END([END])
+    START([START]) --> gi
+    gi["game_init_node<br/>初始化游戏状态"] --> ss["statement_start_node<br/>发言阶段开始"]
+    ss --> sp["statement_player_node<br/>玩家发言: 真人 / Agents"]
+    sp --> g1{"statement_speech_gate_node<br/>等待前端播放语音完毕"}
+    g1 -- "后面还有待发言玩家" --> sp
+    g1 -- "全员发言完毕" --> se["statement_end_node<br/>发言阶段结束"] --> vs["voting_start_node<br/>投票阶段开始"]
+    vs -. "Send × N 并行节点" .-> vp["voting_player_node<br/>玩家并行投票"]
+    vp --> ve["voting_end_node<br/>投票阶段结束<br/>（计票 / 淘汰 / 胜负判定）"]
+    ve -- "未分出胜负则下一轮" --> ss
+    ve -- "分出胜负" --> go["game_over_node<br/>揭晓双方词与身份"]
+    go --> es["exchange_session_start_node<br/>赛后交流开始<br/>（随机起始发言人）"]
+    es --> ep["exchange_session_player_node<br/>玩家发言<br/>（发言者完点名下一位）"]
+    ep --> g2{"exchange_speech_gate_node<br/>等待前端播放语言完毕"}
+    g2 -- "继续下一位发言" --> ep
+    g2 -- "结束" --> ee["exchange_session_end_node<br/>赛后交流阶段结束"] --> END([END])
 ```
-
-各阶段的规则：
-
-- 发言阶段：`active_player_ptr` 在 `present_players` 上顺位推进。真人发言没有事件回执，前端本地回显即可；Agent 发言经 `statement_player_end` 加 `player_speech`（语音）下发。每人说完都要过一道 speech gate（`interrupt speech_playback_done`），等前端确认语音播完再继续，让图的推进和听感保持同步。
-- 投票阶段：在场玩家并行投票，`decision = 0` 表示弃票。`voting_end_node` 按下述规则计票：
-  - 全员弃票或平票，无人淘汰，进入下一轮。
-  - 投出卧底，平民获胜。
-  - 投出平民，且场上剩余不超过 2 人，卧底获胜。
-  - 其余情况淘汰该平民，进入下一轮。
-- 赛后交流：胜负揭晓后进入，共 `player_total + 1` 次发言。起始发言人随机，之后由上一位发言者点名下一位；轮到真人时，用 `need_exchange` 提交「内容 + 点名」。
 
 ### Interrupt / Resume 协议
 
-`interrupt()` 的挂起值就是 `{"type": ...}`，它作为 SSE 段的最后一帧原样下发（`event: interrupt`），前端按下表回传 `resume`：
+真人和 Agent 玩家发言、投票和赛后交流都共享同一个节点，轮到真人玩家则中断 graph，`interrupt()` 的挂起值为 `{"type": ...}`，FastAPI 将中断类型作为 SSE 流的最后一帧下发给前端，前端按下表回传 `resume`：
 
-| interrupt type | 场景 | resume 值 |
+| interrupt 类型 | 场景 | resume 值 |
 |---|---|---|
-| `need_statement` | 轮到真人发言 | 字符串（发言内容） |
-| `need_vote` | 轮到真人投票 | 数字（目标玩家 ID，`0` 表示弃票） |
-| `need_exchange` | 赛后交流轮到真人 | `"发言内容\|\|下一位玩家ID"` |
+| `need_statement` | 轮到真人发言 | 发言内容 |
+| `need_vote` | 轮到真人投票 | 目标玩家 ID，`0` 表示弃票 |
+| `need_exchange` | 赛后交流轮到真人 | 发言内容，并指定下一位发言玩家 |
 | `speech_playback_done` | 等待语音播放确认 | `true` |
-
-`resume` 字段必填。`endpoints.py` 里的 `RESUME_VALIDATORS` 会在入口先校验值的形状，类型不符直接返回 422，免得坏值等到 interrupt 被消费之后才炸，把 thread 留在奇怪的状态里。
 
 ## SSE 事件一览
 
