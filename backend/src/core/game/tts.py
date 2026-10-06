@@ -18,7 +18,7 @@ SAMPLE_RATE = 16000
 # 中文系统音色表（按玩家 ID 取模固定分配，保证同一玩家音色不变）
 VOICE_IDS = [
     "moss_audio_3dee3d0c-7ce6-11f0-8ff8-2a857e2646d2", # 良木
-    "moss_audio_9c223de9-7ce1-11f0-9b9f-463feaa3106a", # 万茂源
+    "moss_audio_9c223de9-7ce1-11f0-9b9f-463feaa3106a", # 江浩然
     "moss_audio_ad5baf92-735f-11f0-8263-fe5a2fe98ec8", # Peng。
     "moss_audio_6ebc4801-a9c3-11f1-b918-4e871ed0d69e", # Xavier
     "Chinese (Mandarin)_Southern_Young_Man", # 顾凯
