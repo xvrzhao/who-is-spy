@@ -1,10 +1,10 @@
 # 谁是卧底
 
-和一桌 Agent 玩 “谁是卧底” ！
+和一桌 Agents 玩 “谁是卧底” ！
 
 <div align="center">
-  <img src="images/开局.jpg" width="22%" alt="开局"> <img src="images/分配词语.jpg" width="22%" alt="分配词语"> <img src="images/发言中.jpg" width="22%" alt="发言中"> <img src="images/投票.jpg" width="22%" alt="投票"><br>
-  <img src="images/投票中.jpg" width="22%" alt="投票中"> <img src="images/投票结果.jpg" width="22%" alt="投票结果"> <img src="images/淘汰出局.jpg" width="22%" alt="淘汰出局"> <img src="images/赛后交流.jpg" width="22%" alt="赛后交流">
+  <img src="images/开局.jpg" width="24%" alt="开局"> <img src="images/分配词语.jpg" width="24%" alt="分配词语"> <img src="images/发言中.jpg" width="24%" alt="发言中"> <img src="images/投票.jpg" width="24%" alt="投票"><br>
+  <img src="images/投票中.jpg" width="24%" alt="投票中"> <img src="images/投票结果.jpg" width="24%" alt="投票结果"> <img src="images/淘汰出局.jpg" width="24%" alt="淘汰出局"> <img src="images/赛后交流.jpg" width="24%" alt="赛后交流">
 </div>
 
 ## 特色功能
@@ -12,7 +12,7 @@
 - 每个 Agent 都有自己独立的记忆，包括游戏中各玩家的发言投票、自己的心理推测独白等。
 - 每个 Agent 都是真实语音发言，发言内容和投票决策使用语言模型，语音播放采用 MiniMax 的语音模型，每个 Agent 都有自己独特的音色、语气，具有人的温度。
 - 每个 Agent 发言前都会有私密推理（我是卧底吗、谁可疑），卧底会主动伪装，Agent 的发言也会站队、拉拢、排挤等，真实感很强。
-- 游戏结束后，大家会有交流复盘环节，和 Agent 一起对话，说说谁是“奥斯卡”、谁很冤、评评理、夸夸人，话题是开放的。
+- 游戏结束后，大家会有交流复盘环节，和 Agents 一起对话，说说谁会装、谁最冤、评评理、夸夸人... 话题开放。
 
 ## 技术栈
 
